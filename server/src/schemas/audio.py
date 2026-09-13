@@ -1,40 +1,19 @@
-"""Contratos (schemas) da API e catálogo de processamentos disponíveis."""
+"""Contratos (schemas) da API.
+
+Este módulo é **puro**: não acessa banco nem disco. Quem converte linhas do banco
+em resposta é ``schemas/serializers.py``.
+"""
 
 from datetime import datetime
-from enum import Enum
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-if TYPE_CHECKING:
+from ..processing import PROCESSING_CATALOG, PROCESSING_TYPES, ProcessingType
+
+if TYPE_CHECKING:  # evita import circular em tempo de execução
     from ..models.audio import Audio
-
-
-class ProcessingType(str, Enum):
-    """Processamentos aceitos pelo endpoint de upload."""
-
-    original = "original"
-    volume = "volume"
-    mono = "mono"
-    speed = "speed"
-    bitrate = "bitrate"
-    format = "format"
-
-
-# Valores padrão usados quando o cliente não envia os parâmetros opcionais.
-DEFAULT_SPEED_FACTOR = 1.5
-DEFAULT_BITRATE = "64k"
-DEFAULT_TARGET_FORMAT = "wav"
-DEFAULT_LOUDNESS_TARGET = -16.0
-
-SPEED_FACTOR_MIN = 0.5
-SPEED_FACTOR_MAX = 2.0
-LOUDNESS_TARGET_MIN = -40.0
-LOUDNESS_TARGET_MAX = 0.0
-
-TARGET_FORMATS = ("wav", "mp3", "ogg", "flac", "m4a", "opus")
 
 
 class ProcessingTypeInfo(BaseModel):
@@ -46,44 +25,12 @@ class ProcessingTypeInfo(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
 
 
-PROCESSING_TYPE_CATALOG: dict[ProcessingType, ProcessingTypeInfo] = {
-    ProcessingType.original: ProcessingTypeInfo(
-        key=ProcessingType.original,
-        label="Sem processamento",
-        description="Mantém o áudio original e grava uma cópia idêntica como arquivo processado.",
-        parameters={},
-    ),
-    ProcessingType.volume: ProcessingTypeInfo(
-        key=ProcessingType.volume,
-        label="Normalização de volume",
-        description="Normaliza o volume usando o filtro loudnorm (padrão EBU R128).",
-        parameters={"loudness_target": DEFAULT_LOUDNESS_TARGET},
-    ),
-    ProcessingType.mono: ProcessingTypeInfo(
-        key=ProcessingType.mono,
-        label="Conversão para mono",
-        description="Converte o áudio para um único canal.",
-        parameters={},
-    ),
-    ProcessingType.speed: ProcessingTypeInfo(
-        key=ProcessingType.speed,
-        label="Alteração de velocidade",
-        description="Altera a velocidade de reprodução sem mudar o tom (filtro atempo).",
-        parameters={"speed_factor": DEFAULT_SPEED_FACTOR},
-    ),
-    ProcessingType.bitrate: ProcessingTypeInfo(
-        key=ProcessingType.bitrate,
-        label="Redução da taxa de bits",
-        description="Recomprime o áudio com uma taxa de bits menor (em formatos com perda).",
-        parameters={"bitrate": DEFAULT_BITRATE},
-    ),
-    ProcessingType.format: ProcessingTypeInfo(
-        key=ProcessingType.format,
-        label="Conversão de formato",
-        description="Converte o áudio para outro formato/container.",
-        parameters={"target_format": DEFAULT_TARGET_FORMAT},
-    ),
-}
+def build_processing_catalog() -> list[ProcessingTypeInfo]:
+    """Monta a lista de processamentos na ordem definida em ``processing.py``."""
+    return [
+        ProcessingTypeInfo(key=processing_type, **PROCESSING_CATALOG[processing_type])
+        for processing_type in PROCESSING_TYPES
+    ]
 
 
 class AudioResponse(BaseModel):
@@ -94,24 +41,24 @@ class AudioResponse(BaseModel):
     # Campos da tabela ``audios`` (referentes ao arquivo ORIGINAL enviado pelo cliente).
     original_name: str
     original_ext: str
-    mime_type: Optional[str] = None
-    size_bytes: Optional[int] = None
-    duration_sec: Optional[float] = None
-    sample_rate: Optional[int] = None
-    channels: Optional[int] = None
-    bitrate: Optional[int] = None
+    mime_type: str | None = None
+    size_bytes: int | None = None
+    duration_sec: float | None = None
+    sample_rate: int | None = None
+    channels: int | None = None
+    bitrate: int | None = None
     processing_type: str
-    processing_params: Optional[dict[str, Any]] = None
-    checksum: Optional[str] = None
-    created_at: Optional[datetime] = None
-    deleted_at: Optional[datetime] = None
+    processing_params: dict[str, Any] | None = None
+    checksum: str | None = None
+    created_at: datetime | None = None
+    deleted_at: datetime | None = None
     is_deleted: bool = False
     path_original: str
     path_processed: str
 
     # Informações do arquivo processado.
-    processed_ext: Optional[str] = None
-    processed_size_bytes: Optional[int] = None
+    processed_ext: str | None = None
+    processed_size_bytes: int | None = None
 
     # URLs relativas: o cliente deve concatenar com a base_url do servidor.
     original_url: str
@@ -120,12 +67,16 @@ class AudioResponse(BaseModel):
     metadata_url: str
 
     @classmethod
-    def from_model(cls, audio: "Audio") -> "AudioResponse":
-        try:
-            processed_size: Optional[int] = Path(audio.path_processed).stat().st_size
-        except OSError:
-            processed_size = None
+    def from_model(
+        cls,
+        audio: "Audio",
+        processed_size_bytes: int | None = None,
+    ) -> "AudioResponse":
+        """Converte a linha do banco em resposta.
 
+        O tamanho do arquivo processado é recebido pronto (o schema não consulta o
+        disco): veja ``schemas/serializers.py``.
+        """
         audio_id = audio.id
 
         return cls(
@@ -147,7 +98,7 @@ class AudioResponse(BaseModel):
             path_original=audio.path_original,
             path_processed=audio.path_processed,
             processed_ext=audio.processed_ext or None,
-            processed_size_bytes=processed_size,
+            processed_size_bytes=processed_size_bytes,
             original_url=f"/audios/{audio_id}/original",
             processed_url=f"/audios/{audio_id}/processed",
             waveform_url=f"/audios/{audio_id}/waveform",
@@ -170,13 +121,13 @@ class TrashItem(BaseModel):
     directory: str
     size_bytes: int
     files: list[str]
-    deleted_at: Optional[datetime] = None
-    audio: Optional[AudioResponse] = None
+    deleted_at: datetime | None = None
+    audio: AudioResponse | None = None
 
 
 class MessageResponse(BaseModel):
     message: str
-    id: Optional[UUID] = None
+    id: UUID | None = None
 
 
 class TrashOperationResponse(BaseModel):

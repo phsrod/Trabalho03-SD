@@ -1,5 +1,7 @@
-fastapi
-uvicorn[standard]
-python-multipart
-sqlalchemy
-psycopg2-binary
+# Dependências de produção (versões fixadas para a demo ser reprodutível).
+# As versões transitivas (starlette, pydantic, anyio...) vêm garantidas por estas.
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.32
+SQLAlchemy==2.0.52
+psycopg2-binary==2.9.13

@@ -18,10 +18,18 @@ Base URL (da outra máquina): `http://<ip-do-servidor>:8000`
 4. **UUIDs inválidos** retornam `422`; UUIDs válidos porém inexistentes retornam `404`;
    áudios na lixeira retornam `410`.
 5. Erros seguem o formato `{"detail": "mensagem em português"}` (ou a lista de erros do FastAPI no `422`).
-6. Os campos `duration_sec`, `sample_rate`, `channels`, `bitrate` e `size_bytes` referem-se ao
+6. Os parâmetros do formulário são validados **sempre que enviados**, mesmo que o
+   processamento escolhido não os use: um `speed_factor` fora da faixa gera `422` mesmo
+   com `processing_type=mono`. Envie apenas os parâmetros do processamento escolhido —
+   quem não envia nada recebe os padrões do servidor. Campo com valor vazio é tratado
+   como ausente (cai no padrão).
+7. Os campos `duration_sec`, `sample_rate`, `channels`, `bitrate` e `size_bytes` referem-se ao
    **arquivo original**. Os dados do arquivo processado aparecem em `processed_ext`,
    `processed_size_bytes` e no `meta.json`.
-7. Todas as rotas de listagem e de streaming aceitam requisições de qualquer origem (CORS liberado).
+8. `path_original` e `path_processed` são **relativos à raiz do storage** (ex.:
+   `2026-09-13/<uuid>/original/audio.wav`). São informativos: para tocar/baixar use sempre
+   as URLs (`original_url`, `processed_url`), que funcionam mesmo se a pasta mudar.
+9. Todas as rotas de listagem e de streaming aceitam requisições de qualquer origem (CORS liberado).
 
 ---
 
@@ -46,8 +54,8 @@ Toda rota que devolve áudio usa este formato:
 | `created_at` | string | Data/hora do envio (`2026-09-13T15:22:36.761783`) |
 | `deleted_at` | string ou null | Preenchido quando está na lixeira |
 | `is_deleted` | bool | `true` se está na lixeira |
-| `path_original` | string | Caminho no servidor (informativo) |
-| `path_processed` | string | Caminho no servidor (informativo) |
+| `path_original` | string | Caminho relativo ao storage (informativo) |
+| `path_processed` | string | Caminho relativo ao storage (informativo) |
 | `processed_ext` | string | Extensão do arquivo processado |
 | `processed_size_bytes` | int | Tamanho do arquivo processado |
 | `original_url` | string | URL do áudio original (para tocar/baixar) |
@@ -103,7 +111,9 @@ Content-Type: multipart/form-data
 | `bitrate` | string | não | `64k` | Taxa de bits no formato `<kbps>k`, usada com `bitrate` |
 | `target_format` | string | não | `wav` | `wav, mp3, ogg, flac, m4a, opus`, usado com `format` |
 
-Só os parâmetros do processamento escolhido são usados; os outros são ignorados.
+Cada parâmetro só afeta o processamento correspondente, mas **todos são validados quando
+enviados** (fora da faixa → `422`, com a mensagem do FastAPI dizendo qual campo falhou).
+Os limites também aparecem no `/docs` (`minimum`/`maximum`/`pattern`/`enum`).
 
 **Resposta `201 Created`**: um objeto `AudioResponse`.
 
@@ -282,12 +292,13 @@ O cliente pode usar `/health` na inicialização para avisar quando o servidor e
 
 | Código | Quando acontece | Exemplo de `detail` |
 |---|---|---|
-| `400` | Extensão não suportada, arquivo vazio, sem faixa de áudio, parâmetro inválido | `"Formato '.txt' não suportado. Aceitos: wav, mp3, ..."` |
+| `400` | Extensão não suportada, arquivo vazio ou que não é áudio válido | `"Formato '.txt' não suportado. Aceitos: wav, mp3, ..."` |
 | `404` | UUID inexistente, arquivo/registro não encontrado | `"Áudio não encontrado."` |
 | `410` | O áudio está na lixeira | `"Este áudio está na lixeira. Use POST /trash/{id}/restore..."` |
 | `413` | Arquivo maior que o limite (200 MB por padrão) | `"O arquivo excede o limite de 200 MB."` |
 | `409` | Restaurar um áudio que não está na lixeira / pasta já existente | `"Este áudio não está na lixeira."` |
-| `422` | Validação do FastAPI (UUID inválido, `processing_type` desconhecido) | `[{"loc": ["body", "processing_type"], "msg": "Input should be 'original', 'volume', ..."}]` |
+| `422` | Validação do FastAPI: UUID inválido, `processing_type`/`target_format` desconhecido, parâmetro fora da faixa, arquivo ausente | `[{"loc": ["body", "processing_type"], "msg": "Input should be 'original', 'volume', ..."}]` |
+| `405` | Método não permitido na rota (ex.: `GET /trash/{id}`) | — |
 | `500` | Falha do FFmpeg ou erro inesperado | `"Falha no processamento: FFmpeg falhou: ..."` |
 
 ---

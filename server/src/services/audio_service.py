@@ -1,4 +1,8 @@
-"""Inspeção e processamento de áudio usando FFmpeg/FFprobe."""
+"""Inspeção e processamento de áudio usando FFmpeg/FFprobe.
+
+Responsabilidade única: falar com as ferramentas externas. Nada aqui conhece HTTP,
+banco de dados ou layout de pastas (isso fica em ``storage_service``).
+"""
 
 import json
 import logging
@@ -7,7 +11,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from ..schemas.audio import (
+from ..processing import (
+    BITRATE_REGEX,
     DEFAULT_BITRATE,
     DEFAULT_LOUDNESS_TARGET,
     DEFAULT_SPEED_FACTOR,
@@ -18,12 +23,13 @@ from ..schemas.audio import (
     SPEED_FACTOR_MIN,
     TARGET_FORMATS,
     ProcessingType,
+    TargetFormat,
 )
 
 logger = logging.getLogger(__name__)
 
 # Extensões aceitas no upload.
-AUDIO_EXTENSIONS = (
+AUDIO_EXTENSIONS: tuple[str, ...] = (
     "wav",
     "mp3",
     "ogg",
@@ -39,9 +45,9 @@ AUDIO_EXTENSIONS = (
 )
 
 # Formatos com perda: neles a taxa de bits faz sentido.
-LOSSY_EXTENSIONS = ("mp3", "ogg", "oga", "m4a", "aac", "opus", "wma")
+LOSSY_EXTENSIONS: frozenset[str] = frozenset({"mp3", "ogg", "oga", "m4a", "aac", "opus", "wma"})
 
-MIME_TYPES = {
+MIME_TYPES: dict[str, str] = {
     "wav": "audio/wav",
     "mp3": "audio/mpeg",
     "ogg": "audio/ogg",
@@ -59,8 +65,6 @@ MIME_TYPES = {
     "json": "application/json",
 }
 
-BITRATE_PATTERN = re.compile(r"^\d{2,4}k$")
-
 DEFAULT_WAVEFORM_SIZE = "1200x400"
 
 
@@ -72,6 +76,9 @@ class InvalidParameterError(ValueError):
     """Parâmetro de processamento inválido enviado pelo cliente."""
 
 
+# --------------------------------------------------------------------------- #
+# Helpers
+# --------------------------------------------------------------------------- #
 def guess_mime_type(extension: str) -> str:
     return MIME_TYPES.get(extension.lower().lstrip("."), "application/octet-stream")
 
@@ -89,22 +96,22 @@ def normalize_processing_type(processing_type: ProcessingType | str) -> Processi
         ) from error
 
 
-def _as_float(value, default: float) -> float:
+def _as_float(value: object, default: float) -> float:
     try:
-        return float(value)
+        return float(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return default
 
 
-def _as_int(value, default: int = 0) -> int:
+def _as_int(value: object, default: int = 0) -> int:
     try:
-        return int(float(value))
+        return int(float(value))  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return default
 
 
 def _run(command: list[str]) -> subprocess.CompletedProcess:
-    """Executa um comando externo convertendo falhas em AudioProcessingError."""
+    """Executa um comando externo convertendo falhas em ``AudioProcessingError``."""
     try:
         return subprocess.run(command, capture_output=True, text=True, check=True)
     except FileNotFoundError as error:
@@ -116,13 +123,20 @@ def _run(command: list[str]) -> subprocess.CompletedProcess:
         stderr = (error.stderr or "").strip()
         last_line = stderr.splitlines()[-1] if stderr else "erro desconhecido"
         logger.error("Falha no comando %s: %s", " ".join(command), stderr)
+
         raise AudioProcessingError(f"FFmpeg falhou: {last_line}") from error
 
 
-def validate_processing_parameters(
-    processing_type: ProcessingType | str, parameters: dict | None
-) -> dict:
-    """Valida os parâmetros e devolve apenas os que se aplicam ao processamento escolhido."""
+# --------------------------------------------------------------------------- #
+# Parâmetros
+# --------------------------------------------------------------------------- #
+def validate_processing_parameters(processing_type: ProcessingType | str, parameters: dict | None) -> dict:
+    """Valida os parâmetros e devolve apenas os que se aplicam ao processamento escolhido.
+
+    A API já aplica as mesmas faixas no formulário (usando as constantes de
+    ``processing.py``); esta checagem é a segunda barreira, para quando o serviço é
+    chamado diretamente (testes, scripts).
+    """
     processing_type = normalize_processing_type(processing_type)
     raw = dict(parameters or {})
 
@@ -131,8 +145,7 @@ def validate_processing_parameters(
 
         if not LOUDNESS_TARGET_MIN <= target <= LOUDNESS_TARGET_MAX:
             raise InvalidParameterError(
-                f"loudness_target deve estar entre {LOUDNESS_TARGET_MIN} e "
-                f"{LOUDNESS_TARGET_MAX} LUFS."
+                f"loudness_target deve estar entre {LOUDNESS_TARGET_MIN} e {LOUDNESS_TARGET_MAX} LUFS."
             )
 
         return {"loudness_target": round(target, 2)}
@@ -151,32 +164,37 @@ def validate_processing_parameters(
     if processing_type == ProcessingType.bitrate:
         bitrate = str(raw.get("bitrate") or DEFAULT_BITRATE).strip().lower()
 
-        if not BITRATE_PATTERN.match(bitrate):
-            raise InvalidParameterError(
-                "bitrate deve seguir o formato <kbps>k, por exemplo 64k ou 128k."
-            )
+        if not re.fullmatch(BITRATE_REGEX, bitrate):
+            raise InvalidParameterError("bitrate deve seguir o formato <kbps>k, por exemplo 64k ou 128k.")
 
         return {"bitrate": bitrate}
 
     if processing_type == ProcessingType.format:
-        target_format = (
-            str(raw.get("target_format") or DEFAULT_TARGET_FORMAT).strip().lower().lstrip(".")
-        )
+        target_format = _target_format_value(raw.get("target_format"))
 
         if target_format not in TARGET_FORMATS:
-            raise InvalidParameterError(
-                f"target_format deve ser um destes: {', '.join(TARGET_FORMATS)}."
-            )
+            raise InvalidParameterError(f"target_format deve ser um destes: {', '.join(TARGET_FORMATS)}.")
 
         return {"target_format": target_format}
 
     return {}
 
 
+def _target_format_value(value: object) -> str:
+    """Aceita ``TargetFormat.wav`` ou ``"wav"`` e devolve sempre a string."""
+    if isinstance(value, TargetFormat):
+        return value.value
+
+    if value is None:
+        return DEFAULT_TARGET_FORMAT.value
+
+    return str(value).strip().lower().lstrip(".")
+
+
 def resolve_processed_extension(
     processing_type: ProcessingType | str, original_ext: str, parameters: dict
 ) -> str:
-    """Define a extensão do arquivo processado (sempre ``audio.<ext>``)."""
+    """Define a extensão do arquivo processado (que sempre se chama ``audio.<ext>``)."""
     processing_type = normalize_processing_type(processing_type)
     original_ext = original_ext.lower()
 
@@ -191,6 +209,9 @@ def resolve_processed_extension(
     return original_ext
 
 
+# --------------------------------------------------------------------------- #
+# FFprobe / FFmpeg
+# --------------------------------------------------------------------------- #
 def probe_audio(file_path: Path) -> dict:
     """Lê duração, taxa de amostragem, canais e bitrate de um arquivo de áudio."""
     result = _run(
@@ -222,9 +243,7 @@ def probe_audio(file_path: Path) -> dict:
     file_format = data.get("format", {})
 
     return {
-        "duration_sec": round(
-            _as_float(file_format.get("duration") or stream.get("duration"), 0.0), 3
-        ),
+        "duration_sec": round(_as_float(file_format.get("duration") or stream.get("duration"), 0.0), 3),
         "sample_rate": _as_int(stream.get("sample_rate")),
         "channels": _as_int(stream.get("channels")),
         "bitrate": _as_int(file_format.get("bit_rate") or stream.get("bit_rate")),

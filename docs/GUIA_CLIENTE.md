@@ -779,6 +779,11 @@ if __name__ == "__main__":
   acha que travou. Use o `Tarefa`/`em_background` acima.
 - **Dentro da lambda não mexa em widgets**: só dentro dos callbacks `ao_concluir` / `ao_falhar`, que
   rodam na thread da GUI.
+- **Envie apenas os parâmetros do processamento escolhido.** O servidor valida todos os
+  campos enviados (mesmo os que não usa): `speed_factor` fora de 0.5–2.0, `bitrate` fora do
+  padrão `<kbps>k` ou `target_format` desconhecido geram `422`, independentemente do
+  `processing_type`. O que você não enviar assume o padrão do servidor (veja
+  `GET /audios/processing-types`).
 - **Erros do servidor já vêm com mensagem pronta em português** (`{"detail": "..."}`); mostre no
   `QMessageBox` em vez de só "falhou".
 - **Antes do upload** você só conhece nome e tamanho do arquivo local. Duração, canais, taxa de

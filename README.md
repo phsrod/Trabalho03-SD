@@ -127,11 +127,22 @@ O `meta.json` guarda as informações complementares pedidas no trabalho:
   "processing_type": "volume",
   "processing_params": { "filter": "loudnorm", "target_lufs": -14.0, "true_peak_db": -1.5, "loudness_range": 11 },
   "checksum_sha256": "768ec91f...",
-  "storage": { "directory": "2026-09-13/<uuid>", "original": "...", "processed": "...", "waveform": "waveform.png" },
-  "original": { "file": "original/audio.mp3", "size_bytes": 733645, "duration_sec": 42.06, "sample_rate": 44100, "channels": 2, "bitrate": 128000 },
-  "processed": { "file": "processed/audio.mp3", "size_bytes": 449237, "duration_sec": 42.06, "sample_rate": 44100, "channels": 2, "bitrate": 128000 }
+  "storage": {
+    "directory": "2026-09-13/<uuid>",
+    "original": "2026-09-13/<uuid>/original/audio.mp3",
+    "processed": "2026-09-13/<uuid>/processed/audio.mp3",
+    "waveform": "waveform.png",
+    "metadata": "meta.json"
+  },
+  "original": { "file": "2026-09-13/<uuid>/original/audio.mp3", "size_bytes": 733645, "duration_sec": 42.06, "sample_rate": 44100, "channels": 2, "bitrate": 128000 },
+  "processed": { "file": "2026-09-13/<uuid>/processed/audio.mp3", "size_bytes": 449237, "duration_sec": 42.06, "sample_rate": 44100, "channels": 2, "bitrate": 128000 }
 }
 ```
+
+Os caminhos gravados no banco (`path_original` / `path_processed`) e no `meta.json`
+são **relativos à raiz do storage**, então mudar a pasta de armazenamento (ou rodar em
+outra máquina) não invalida os registros. O servidor resolve o caminho absoluto na
+hora de servir o arquivo.
 
 A exclusão é **reversível**: `DELETE /audios/{id}` move a pasta para `trash/<uuid>` e marca `deleted_at`
 no banco. Para desfazer existe `POST /trash/{id}/restore`; para apagar de verdade existem
@@ -207,18 +218,22 @@ Detalhes de requisição/resposta, códigos de erro e exemplos: [`docs/API.md`](
 │   └── app/main.py
 ├── server/
 │   ├── Dockerfile
-│   ├── requirements.txt
+│   ├── requirements.txt         # dependências (versões fixadas)
 │   ├── src/
 │   │   ├── main.py              # aplicação FastAPI, CORS, /health, /web
 │   │   ├── config.py            # caminhos e variáveis de ambiente
+│   │   ├── processing.py        # domínio: tipos, limites e catálogo de processamentos
 │   │   ├── database.py          # engine, sessão, criação/migração das tabelas
 │   │   ├── dependencies.py      # dependência get_db
 │   │   ├── models/audio.py      # modelo ORM da tabela audios
-│   │   ├── schemas/audio.py     # contratos da API + catálogo de processamentos
+│   │   ├── schemas/
+│   │   │   ├── audio.py         # contratos da API (puros, sem I/O)
+│   │   │   └── serializers.py   # modelo -> contrato da API
 │   │   ├── routes/
 │   │   │   ├── audio_routes.py  # upload, histórico, streaming, exclusão
 │   │   │   └── trash_routes.py  # lixeira (listar, restaurar, esvaziar)
 │   │   ├── services/
+│   │   │   ├── upload_service.py   # pipeline do upload (orquestração)
 │   │   │   ├── audio_service.py    # FFmpeg/FFprobe (processamento e waveform)
 │   │   │   └── storage_service.py  # pastas, meta.json, checksum, lixeira
 │   │   └── web/index.html       # interface web do servidor
@@ -227,3 +242,27 @@ Detalhes de requisição/resposta, códigos de erro e exemplos: [`docs/API.md`](
 ├── database/init.sql            # criação da tabela audios
 └── docker-compose.yml           # servidor + PostgreSQL
 ```
+
+### Organização em camadas
+
+```
+rotas (HTTP)  ->  services (regras de negócio)  ->  models / banco
+     |                    |
+     v                    v
+ schemas (contratos)  processing (domínio puro) + FFmpeg + disco
+```
+
+- As **rotas** não contêm regra de negócio: validam a entrada, chamam o serviço e
+traduzem exceções de domínio em status HTTP.
+- Os **serviços** não conhecem HTTP (nenhum `HTTPException` fora das rotas).
+- Os **schemas** são puros (não acessam banco nem disco); a conversão de modelo para
+resposta fica em `schemas/serializers.py`.
+- As **regras de domínio** (limites dos parâmetros, catálogo de processamentos) ficam em
+`processing.py`, usado tanto pela validação da API quanto pelos serviços, sem duplicação.
+
+### Migração do banco
+
+O `init.sql` só roda quando o volume do PostgreSQL é criado. Para bancos já existentes,
+`init_db()` compara o modelo ORM com a tabela e adiciona automaticamente as colunas que
+faltam (ver `_add_missing_columns` em `server/src/database.py`), de forma idempotente.
+Em um projeto maior o caminho seria usar Alembic.

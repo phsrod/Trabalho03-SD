@@ -11,7 +11,16 @@ from ..database import Base
 
 
 class Audio(Base):
-    """Metadados de um áudio enviado, processado e armazenado."""
+    """Metadados de um áudio enviado, processado e armazenado.
+
+    Os campos ``duration_sec``, ``sample_rate``, ``channels``, ``bitrate`` e
+    ``size_bytes`` descrevem o **arquivo original**; os dados do arquivo processado
+    ficam no ``meta.json`` da pasta do áudio.
+
+    ``path_original`` e ``path_processed`` são relativos à raiz do storage (ex.:
+    ``2026-09-13/<uuid>/original/audio.wav``), o que mantém o banco portável. Use
+    ``storage_service.resolve_path`` para acessar o arquivo em disco.
+    """
 
     __tablename__ = "audios"
 
@@ -33,14 +42,11 @@ class Audio(Base):
     path_processed = Column(String, nullable=False)
 
     @property
-    def directory(self) -> Path:
-        """Pasta do UUID: contém ``original/``, ``processed/``, ``meta.json`` e ``waveform.png``."""
-        return Path(self.path_original).parent.parent
-
-    @property
     def processed_ext(self) -> str:
+        """Extensão do arquivo processado (derivada do caminho gravado)."""
         return Path(self.path_processed).suffix.lower().lstrip(".")
 
     @property
     def is_deleted(self) -> bool:
+        """``True`` quando o áudio está na lixeira."""
         return self.deleted_at is not None

@@ -22,4 +22,5 @@ RUN mkdir -p /app/storage /app/trash
 
 EXPOSE 8000
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# --reload-dir limita o auto-reload ao código do servidor (ignora testes e storage).
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/src"]

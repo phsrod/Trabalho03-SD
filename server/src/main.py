@@ -37,21 +37,24 @@ registra os metadados no **PostgreSQL**.
 | Valor | O que faz | Parâmetro extra |
 |---|---|---|
 | `original` | Não altera o áudio (grava uma cópia idêntica) | — |
-| `volume` | Normalização de volume (loudnorm / EBU R128) | `loudness_target` (LUFS) |
+| `volume` | Normalização de volume (loudnorm / EBU R128) | `loudness_target` (LUFS, -40 a 0) |
 | `mono` | Converte para 1 canal | — |
-| `speed` | Altera a velocidade sem mudar o tom (atempo) | `speed_factor` (0.5–2.0) |
+| `speed` | Altera a velocidade sem mudar o tom (atempo) | `speed_factor` (0.5 a 2.0) |
 | `bitrate` | Reduz a taxa de bits | `bitrate` (ex.: `64k`) |
 | `format` | Converte o formato | `target_format` (wav, mp3, ogg, flac, m4a, opus) |
 
 ### Estrutura em disco
 
 ```
-storage/<AAAA-MM-DD>/<uuid>/original/audio.<ext>
-storage/<AAAA-MM-DD>/<uuid>/processed/audio.<ext>
-storage/<AAAA-MM-DD>/<uuid>/waveform.png
-storage/<AAAA-MM-DD>/<uuid>/meta.json
-trash/<uuid>/...
+<storage>/<AAAA-MM-DD>/<uuid>/original/audio.<ext>
+<storage>/<AAAA-MM-DD>/<uuid>/processed/audio.<ext>
+<storage>/<AAAA-MM-DD>/<uuid>/waveform.png
+<storage>/<AAAA-MM-DD>/<uuid>/meta.json
+<trash>/<uuid>/...
 ```
+
+Os caminhos gravados no banco são relativos à raiz do storage, então mover a pasta
+de armazenamento não invalida os registros.
 
 A interface web para ouvir os áudios direto no navegador fica em [`/web`](/web).
 """
@@ -90,8 +93,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# O cliente é desktop (PySide6), mas liberamos CORS para permitir testes
-# no navegador (inclusive a interface web aberta de outra máquina).
+# O cliente é desktop (PySide6), mas liberamos CORS para permitir testes no
+# navegador, inclusive com a interface web aberta a partir de outra máquina.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -158,4 +161,5 @@ def web_interface():
 
 @app.get("/web/", include_in_schema=False)
 def web_interface_trailing_slash():
+    """Alias para quem digita a barra no final."""
     return web_interface()
