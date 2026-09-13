@@ -1,9 +1,15 @@
 FROM python:3.13-slim
 
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    STORAGE_PATH=/app/storage \
+    TRASH_PATH=/app/trash
+
 WORKDIR /app
 
+# O FFmpeg (ffmpeg + ffprobe) é usado para processar e inspecionar os áudios.
 RUN apt-get update \
-    && apt-get install -y ffmpeg \
+    && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

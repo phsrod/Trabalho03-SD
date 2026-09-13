@@ -4,59 +4,434 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Processamento de Áudio</title>
+    <title>Processamento de Áudio - Servidor</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --fundo: #12141a;
+            --cartao: #1c1f27;
+            --borda: #2b303c;
+            --texto: #e8eaf0;
+            --texto-fraco: #9aa3b5;
+            --destaque: #4f8cff;
+            --perigo: #ff6b6b;
+            --sucesso: #3ddc97;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0 0 60px;
+            background: var(--fundo);
+            color: var(--texto);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.5;
+        }
+
+        header {
+            padding: 28px 32px 20px;
+            border-bottom: 1px solid var(--borda);
+            background: linear-gradient(180deg, #1a1e28, var(--fundo));
+        }
+
+        header h1 { margin: 0 0 6px; font-size: 22px; }
+        header p { margin: 0; color: var(--texto-fraco); font-size: 14px; }
+
+        .barra {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            padding: 18px 32px;
+            border-bottom: 1px solid var(--borda);
+        }
+
+        select, input, button {
+            background: var(--cartao);
+            color: var(--texto);
+            border: 1px solid var(--borda);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        input { min-width: 220px; }
+
+        button { cursor: pointer; transition: border-color .15s, background .15s; }
+        button:hover { border-color: var(--destaque); }
+        button.perigo { color: var(--perigo); }
+        button.perigo:hover { border-color: var(--perigo); }
+
+        main { padding: 24px 32px; }
+
+        h2 { font-size: 16px; text-transform: uppercase; letter-spacing: .08em; color: var(--texto-fraco); }
+
+        .grade {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 18px;
+        }
+
+        .cartao {
+            background: var(--cartao);
+            border: 1px solid var(--borda);
+            border-radius: 12px;
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .cartao h3 {
+            margin: 0;
+            font-size: 16px;
+            word-break: break-all;
+        }
+
+        .etiquetas { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        .etiqueta {
+            font-size: 12px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: #263041;
+            border: 1px solid var(--borda);
+            color: var(--texto-fraco);
+        }
+
+        .etiqueta.destaque { background: #1e3a6b; color: #cfe0ff; border-color: #2f5296; }
+
+        dl {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 2px 12px;
+            margin: 0;
+            font-size: 13px;
+        }
+
+        dt { color: var(--texto-fraco); }
+        dd { margin: 0; word-break: break-all; }
+
+        audio { width: 100%; height: 34px; }
+
+        .rotulo { font-size: 12px; color: var(--texto-fraco); margin: 0; }
+
+        img.waveform {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid var(--borda);
+            background: #0d0f14;
+        }
+
+        .acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+
+        .acoes a {
+            color: var(--destaque);
+            text-decoration: none;
+            font-size: 13px;
+            border: 1px solid var(--borda);
+            border-radius: 8px;
+            padding: 6px 10px;
+        }
+
+        .acoes a:hover { border-color: var(--destaque); }
+
+        .vazio, .erro {
+            color: var(--texto-fraco);
+            font-size: 14px;
+            padding: 12px 0;
+        }
+
+        .erro { color: var(--perigo); }
+
+        #lixeira { margin-top: 40px; }
+
+        .item-lixeira {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid var(--borda);
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            background: var(--cartao);
+            font-size: 14px;
+        }
+
+        code { background: #0d0f14; padding: 1px 6px; border-radius: 6px; font-size: 12px; }
+    </style>
 </head>
 
 <body>
 
-    <h1>Sistema de Processamento de Áudio</h1>
+    <header>
+        <h1>🎧 Sistema de Processamento de Áudio</h1>
+        <p>Áudios armazenados pelo servidor &mdash; ouça o original, o processado e veja a forma de onda.</p>
+    </header>
 
-    <h2>Áudios cadastrados</h2>
+    <div class="barra">
+        <select id="filtroProcessamento">
+            <option value="">Todos os processamentos</option>
+        </select>
+        <input id="filtroBusca" type="search" placeholder="Buscar pelo nome do arquivo...">
+        <button id="botaoAtualizar">🔄 Atualizar</button>
+        <span id="resumo" class="rotulo"></span>
+    </div>
 
-    <div id="audios"></div>
+    <main>
+        <h2>Áudios armazenados</h2>
+        <div id="audios" class="grade"></div>
+
+        <section id="lixeira">
+            <h2>Lixeira</h2>
+            <button id="botaoEsvaziar" class="perigo" type="button">🗑️ Esvaziar lixeira</button>
+            <div id="itensLixeira" style="margin-top: 12px;"></div>
+        </section>
+    </main>
 
     <script>
-        async function carregarAudios() {
-            const resposta = await fetch("/audios/");
-            const audios = await resposta.json();
+        const estado = { audios: [], lixeira: [] };
 
-            const container = document.getElementById("audios");
+        function escapar(valor) {
+            return String(valor ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
 
-            audios.forEach(audio => {
-                const elemento = document.createElement("div");
+        function formatarBytes(bytes) {
+            if (bytes === null || bytes === undefined) return "—";
+            const unidades = ["B", "KB", "MB", "GB"];
+            let valor = bytes;
+            let indice = 0;
+            while (valor >= 1024 && indice < unidades.length - 1) {
+                valor /= 1024;
+                indice += 1;
+            }
+            return `${valor.toFixed(indice === 0 ? 0 : 1)} ${unidades[indice]}`;
+        }
 
-                elemento.innerHTML = `
-                    <h3>${audio.original_name}</h3>
+        function formatarDuracao(segundos) {
+            if (!segundos) return "—";
+            const total = Math.floor(segundos);
+            const minutos = String(Math.floor(total / 60)).padStart(2, "0");
+            const resto = String(total % 60).padStart(2, "0");
+            return `${minutos}:${resto} (${segundos.toFixed(2)}s)`;
+        }
 
-                    <p>Processamento: ${audio.processing_type}</p>
-                    <p>Duração: ${audio.duration_sec.toFixed(2)} segundos</p>
-                    <p>Canais: ${audio.channels}</p>
+        function formatarData(iso) {
+            if (!iso) return "—";
+            const data = new Date(iso);
+            return Number.isNaN(data.getTime()) ? iso : data.toLocaleString("pt-BR");
+        }
 
-                    <p>Áudio original:</p>
-                    <audio controls>
-                        <source src="/audios/${audio.id}/original" type="${audio.mime_type}">
-                    </audio>
+        function formatarParametros(parametros) {
+            if (!parametros || Object.keys(parametros).length === 0) return "—";
+            return Object.entries(parametros).map(([chave, valor]) => `${chave}=${valor}`).join(", ");
+        }
 
-                    <p>Áudio processado:</p>
-                    <audio controls>
-                        <source src="/audios/${audio.id}/processed" type="${audio.mime_type}">
-                    </audio>
+        async function requisitar(url, opcoes = {}) {
+            const resposta = await fetch(url, opcoes);
+            if (!resposta.ok) {
+                let detalhe = `HTTP ${resposta.status}`;
+                try {
+                    const corpo = await resposta.json();
+                    detalhe = corpo.detail || detalhe;
+                } catch (erro) { /* resposta sem JSON */ }
+                throw new Error(detalhe);
+            }
+            return resposta.status === 204 ? null : resposta.json();
+        }
 
-                    <p>Waveform:</p>
-                    <img
-                        src="/audios/${audio.id}/waveform"
-                        alt="Waveform do áudio"
-                        width="600"
-                    >
-
-                    <hr>
-                `;
-
-                container.appendChild(elemento);
+        async function carregarProcessamentos() {
+            const select = document.getElementById("filtroProcessamento");
+            const tipos = await requisitar("/audios/processing-types");
+            tipos.forEach(tipo => {
+                const opcao = document.createElement("option");
+                opcao.value = tipo.key;
+                opcao.textContent = `${tipo.label} (${tipo.key})`;
+                select.appendChild(opcao);
             });
         }
 
-        carregarAudios();
+        function montarCartao(audio) {
+            const cartao = document.createElement("article");
+            cartao.className = "cartao";
+
+            cartao.innerHTML = `
+                <h3>${escapar(audio.original_name)}</h3>
+                <div class="etiquetas">
+                    <span class="etiqueta destaque">${escapar(audio.processing_type)}</span>
+                    <span class="etiqueta">.${escapar(audio.original_ext)} → .${escapar(audio.processed_ext || audio.original_ext)}</span>
+                    <span class="etiqueta">${formatarBytes(audio.size_bytes)}</span>
+                </div>
+                <dl>
+                    <dt>UUID</dt><dd><code>${escapar(audio.id)}</code></dd>
+                    <dt>Duração</dt><dd>${formatarDuracao(audio.duration_sec)}</dd>
+                    <dt>Canais</dt><dd>${escapar(audio.channels ?? "—")}</dd>
+                    <dt>Taxa de amostragem</dt><dd>${audio.sample_rate ? `${audio.sample_rate} Hz` : "—"}</dd>
+                    <dt>Bitrate</dt><dd>${audio.bitrate ? `${Math.round(audio.bitrate / 1000)} kbps` : "—"}</dd>
+                    <dt>Enviado em</dt><dd>${formatarData(audio.created_at)}</dd>
+                    <dt>Parâmetros</dt><dd>${escapar(formatarParametros(audio.processing_params))}</dd>
+                    <dt>Checksum SHA-256</dt><dd><code>${escapar((audio.checksum || "").slice(0, 16))}…</code></dd>
+                </dl>
+                <p class="rotulo">Áudio original</p>
+                <audio controls preload="none" src="${escapar(audio.original_url)}"></audio>
+                <p class="rotulo">Áudio processado</p>
+                <audio controls preload="none" src="${escapar(audio.processed_url)}"></audio>
+                <p class="rotulo">Forma de onda (waveform.png)</p>
+                <img class="waveform" alt="Forma de onda de ${escapar(audio.original_name)}"
+                     src="${escapar(audio.waveform_url)}?t=${Date.now()}"
+                     onerror="this.replaceWith(Object.assign(document.createElement('p'), {className: 'vazio', textContent: 'waveform.png indisponível para este áudio.'}))">
+                <div class="acoes">
+                    <a href="/audios/${escapar(audio.id)}/download/original">⬇️ Original</a>
+                    <a href="/audios/${escapar(audio.id)}/download/processed">⬇️ Processado</a>
+                    <a href="${escapar(audio.metadata_url)}" target="_blank" rel="noreferrer">📄 meta.json</a>
+                    <button class="perigo" type="button" data-excluir="${escapar(audio.id)}">🗑️ Excluir</button>
+                </div>
+            `;
+
+            return cartao;
+        }
+
+        function renderizarAudios() {
+            const container = document.getElementById("audios");
+            container.innerHTML = "";
+
+            document.getElementById("resumo").textContent =
+                `${estado.audios.length} áudio(s) armazenado(s)`;
+
+            if (estado.audios.length === 0) {
+                container.innerHTML = '<p class="vazio">Nenhum áudio encontrado. Envie um arquivo pelo cliente.</p>';
+                return;
+            }
+
+            estado.audios.forEach(audio => container.appendChild(montarCartao(audio)));
+        }
+
+        function renderizarLixeira() {
+            const container = document.getElementById("itensLixeira");
+
+            if (estado.lixeira.length === 0) {
+                container.innerHTML = '<p class="vazio">Lixeira vazia.</p>';
+                return;
+            }
+
+            container.innerHTML = estado.lixeira.map(item => `
+                <div class="item-lixeira">
+                    <div>
+                        <strong>${escapar(item.audio?.original_name || item.id)}</strong><br>
+                        <span class="rotulo">
+                            <code>${escapar(item.id)}</code> &middot; ${formatarBytes(item.size_bytes)}
+                            &middot; ${item.files.length} arquivo(s)
+                            &middot; removido em ${formatarData(item.deleted_at)}
+                        </span>
+                    </div>
+                    <div class="acoes">
+                        <button type="button" data-restaurar="${escapar(item.id)}">♻️ Restaurar</button>
+                        <button class="perigo" type="button" data-excluir-lixeira="${escapar(item.id)}">❌ Excluir</button>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        async function carregarAudios() {
+            const processamento = document.getElementById("filtroProcessamento").value;
+            const busca = document.getElementById("filtroBusca").value.trim();
+            const parametros = new URLSearchParams();
+
+            if (processamento) parametros.set("processing_type", processamento);
+            if (busca) parametros.set("search", busca);
+
+            try {
+                estado.audios = await requisitar(`/audios/?${parametros.toString()}`);
+                renderizarAudios();
+            } catch (erro) {
+                document.getElementById("audios").innerHTML =
+                    `<p class="erro">Erro ao carregar os áudios: ${escapar(erro.message)}</p>`;
+            }
+        }
+
+        async function carregarLixeira() {
+            try {
+                estado.lixeira = await requisitar("/trash/");
+                renderizarLixeira();
+            } catch (erro) {
+                document.getElementById("itensLixeira").innerHTML =
+                    `<p class="erro">Erro ao carregar a lixeira: ${escapar(erro.message)}</p>`;
+            }
+        }
+
+        async function atualizarTudo() {
+            await Promise.all([carregarAudios(), carregarLixeira()]);
+        }
+
+        document.getElementById("botaoAtualizar").addEventListener("click", atualizarTudo);
+        document.getElementById("filtroProcessamento").addEventListener("change", carregarAudios);
+        document.getElementById("filtroBusca").addEventListener("input", () => {
+            clearTimeout(window.__busca);
+            window.__busca = setTimeout(carregarAudios, 350);
+        });
+
+        document.getElementById("audios").addEventListener("click", async evento => {
+            const botao = evento.target.closest("[data-excluir]");
+            if (!botao) return;
+
+            if (!confirm("Mover este áudio para a lixeira?")) return;
+
+            try {
+                await requisitar(`/audios/${botao.dataset.excluir}`, { method: "DELETE" });
+                await atualizarTudo();
+            } catch (erro) {
+                alert(`Não foi possível excluir: ${erro.message}`);
+            }
+        });
+
+        document.getElementById("itensLixeira").addEventListener("click", async evento => {
+            const restaurar = evento.target.closest("[data-restaurar]");
+            const excluir = evento.target.closest("[data-excluir-lixeira]");
+
+            try {
+                if (restaurar) {
+                    await requisitar(`/trash/${restaurar.dataset.restaurar}/restore`, { method: "POST" });
+                } else if (excluir) {
+                    if (!confirm("Excluir definitivamente? Essa ação não pode ser desfeita.")) return;
+                    await requisitar(`/trash/${excluir.dataset.excluirLixeira}`, { method: "DELETE" });
+                } else {
+                    return;
+                }
+
+                await atualizarTudo();
+            } catch (erro) {
+                alert(`Operação não concluída: ${erro.message}`);
+            }
+        });
+
+        document.getElementById("botaoEsvaziar").addEventListener("click", async () => {
+            if (!confirm("Esvaziar a lixeira? Os arquivos serão apagados definitivamente.")) return;
+
+            try {
+                const resultado = await requisitar("/trash/", { method: "DELETE" });
+                alert(`${resultado.message} ${resultado.removed_directories} pasta(s) e ${resultado.removed_records} registro(s) removidos.`);
+                await atualizarTudo();
+            } catch (erro) {
+                alert(`Não foi possível esvaziar: ${erro.message}`);
+            }
+        });
+
+        (async function iniciar() {
+            try {
+                await carregarProcessamentos();
+            } catch (erro) {
+                console.error("Falha ao carregar os processamentos:", erro);
+            }
+            await atualizarTudo();
+        })();
     </script>
 
 </body>

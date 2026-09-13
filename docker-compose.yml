@@ -4,12 +4,19 @@ services:
     container_name: audio_server
     ports:
       - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/audio_db
+      STORAGE_PATH: /app/storage
+      TRASH_PATH: /app/trash
+      MAX_UPLOAD_SIZE_BYTES: "209715200"
     volumes:
-     - ./server/src:/app/src
-     - ./server/storage:/app/storage
-     - ./server/trash:/app/trash
+      - ./server/src:/app/src
+      - ./server/storage:/app/storage
+      - ./server/trash:/app/trash
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
   postgres:
     image: postgres:17
@@ -23,6 +30,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d audio_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
 
 volumes:
   postgres_data:
