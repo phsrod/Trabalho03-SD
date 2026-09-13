@@ -5,8 +5,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./server/storage:/app/storage
-      - ./server/trash:/app/trash
+     - ./server/src:/app/src
+     - ./server/storage:/app/storage
+     - ./server/trash:/app/trash
     depends_on:
       - postgres
 

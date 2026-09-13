@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Depends
+from fastapi.responses import FileResponse
+from pathlib import Path
 
 from .database import engine
 from .models.audio import Audio
@@ -15,6 +17,11 @@ app = FastAPI(
 
 app.include_router(audio_router)
 
+@app.get("/web")
+def web_interface():
+    html_path = Path(__file__).parent / "web" / "index.html"
+
+    return FileResponse(html_path)
 
 @app.get("/")
 def root():

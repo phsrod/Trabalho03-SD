@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processamento de Áudio</title>
+</head>
+
+<body>
+
+    <h1>Sistema de Processamento de Áudio</h1>
+
+    <h2>Áudios cadastrados</h2>
+
+    <div id="audios"></div>
+
+    <script>
+        async function carregarAudios() {
+            const resposta = await fetch("/audios/");
+            const audios = await resposta.json();
+
+            const container = document.getElementById("audios");
+
+            audios.forEach(audio => {
+                const elemento = document.createElement("div");
+
+                elemento.innerHTML = `
+                    <h3>${audio.original_name}</h3>
+
+                    <p>Processamento: ${audio.processing_type}</p>
+                    <p>Duração: ${audio.duration_sec.toFixed(2)} segundos</p>
+                    <p>Canais: ${audio.channels}</p>
+
+                    <p>Áudio original:</p>
+                    <audio controls>
+                        <source src="/audios/${audio.id}/original" type="${audio.mime_type}">
+                    </audio>
+
+                    <p>Áudio processado:</p>
+                    <audio controls>
+                        <source src="/audios/${audio.id}/processed" type="${audio.mime_type}">
+                    </audio>
+
+                    <p>Waveform:</p>
+                    <img
+                        src="/audios/${audio.id}/waveform"
+                        alt="Waveform do áudio"
+                        width="600"
+                    >
+
+                    <hr>
+                `;
+
+                container.appendChild(elemento);
+            });
+        }
+
+        carregarAudios();
+    </script>
+
+</body>
+
+</html>
