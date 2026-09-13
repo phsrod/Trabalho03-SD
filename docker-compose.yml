@@ -1,0 +1,26 @@
+services:
+  server:
+    build: ./server
+    container_name: audio_server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./server/storage:/app/storage
+      - ./server/trash:/app/trash
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:17
+    container_name: audio_postgres
+    environment:
+      POSTGRES_DB: audio_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
