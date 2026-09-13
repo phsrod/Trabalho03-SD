@@ -1,5 +1,3 @@
-# Dependências de produção (versões fixadas para a demo ser reprodutível).
-# As versões transitivas (starlette, pydantic, anyio...) vêm garantidas por estas.
 fastapi==0.141.1
 uvicorn[standard]==0.52.4
 python-multipart==0.0.32

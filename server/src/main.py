@@ -1,9 +1,4 @@
-"""Servidor FastAPI do sistema de processamento de áudio.
-
-O servidor é a camada intermediária: recebe os áudios enviados pelo cliente
-PySide6, processa com FFmpeg, guarda os arquivos organizados por data e UUID e
-registra os metadados no PostgreSQL.
-"""
+#Servidor FastAPI do sistema de processamento de áudio.
 
 import logging
 from contextlib import asynccontextmanager
@@ -93,8 +88,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# O cliente é desktop (PySide6), mas liberamos CORS para permitir testes no
-# navegador, inclusive com a interface web aberta a partir de outra máquina.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -136,12 +129,11 @@ def root():
     summary="Verifica servidor, banco e pastas de armazenamento",
 )
 def health():
-    """Testa a conexão com o PostgreSQL e informa os caminhos usados em disco."""
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
         database_status = "ok"
-    except Exception as error:  # pragma: no cover - depende do ambiente
+    except Exception as error:
         logger.error("Falha ao consultar o banco: %s", error)
         database_status = f"erro: {error}"
 
@@ -155,11 +147,9 @@ def health():
 
 @app.get("/web", tags=["Infraestrutura"], summary="Interface web dos áudios")
 def web_interface():
-    """Interface web simples para ouvir os áudios armazenados pelo navegador."""
     return FileResponse(Path(__file__).parent / "web" / "index.html")
 
 
 @app.get("/web/", include_in_schema=False)
 def web_interface_trailing_slash():
-    """Alias para quem digita a barra no final."""
     return web_interface()

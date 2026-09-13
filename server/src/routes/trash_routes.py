@@ -1,9 +1,4 @@
-"""Rotas da lixeira: listar, restaurar, excluir permanentemente e esvaziar.
-
-A exclusão de um áudio é sempre reversível: a pasta do UUID sai de
-``storage/<data>/<uuid>`` e vai para ``trash/<uuid>``, e a coluna ``deleted_at`` do
-registro é preenchida. Somente as rotas deste arquivo apagam arquivos do disco.
-"""
+# Rotas da lixeira: listar, restaurar, excluir permanentemente e esvaziar.
 
 import logging
 from datetime import datetime
@@ -12,14 +7,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-
 from ..dependencies import get_db
 from ..models.audio import Audio
-from ..schemas.audio import (
-    MessageResponse,
-    TrashItem,
-    TrashOperationResponse,
-)
+from ..schemas.audio import (MessageResponse, TrashItem, TrashOperationResponse,)
 from ..schemas.serializers import to_audio_response
 from ..services import storage_service
 
@@ -29,7 +19,6 @@ router = APIRouter(prefix="/trash", tags=["Lixeira"])
 
 
 def _trash_entries() -> list[tuple[UUID, Path]]:
-    """Percorre ``trash/`` e devolve apenas as pastas com nome de UUID."""
     entries: list[tuple[UUID, Path]] = []
 
     for directory in storage_service.list_trash_entries():
@@ -46,7 +35,6 @@ def _trash_entries() -> list[tuple[UUID, Path]]:
 
 @router.get("/", response_model=list[TrashItem], summary="Lista os itens da lixeira")
 def list_trash(db: Session = Depends(get_db)):
-    """Lista as pastas em ``trash/`` junto do registro correspondente no banco."""
     items = []
 
     for audio_id, directory in _trash_entries():
@@ -74,8 +62,6 @@ def list_trash(db: Session = Depends(get_db)):
     summary="Restaura um áudio que está na lixeira",
 )
 def restore_audio(audio_id: UUID, db: Session = Depends(get_db)):
-    """Move a pasta de ``trash/<uuid>`` de volta para ``storage/<data>/<uuid>`` e
-    limpa o campo ``deleted_at``."""
     audio = db.get(Audio, audio_id)
 
     if audio is None:
@@ -110,7 +96,6 @@ def restore_audio(audio_id: UUID, db: Session = Depends(get_db)):
     summary="Exclui definitivamente um item da lixeira",
 )
 def delete_trash_item(audio_id: UUID, db: Session = Depends(get_db)):
-    """Apaga a pasta do disco e remove o registro do banco. Não tem volta."""
     directory = storage_service.trash_directory(audio_id)
     audio = db.get(Audio, audio_id)
 
@@ -131,7 +116,6 @@ def delete_trash_item(audio_id: UUID, db: Session = Depends(get_db)):
 
 @router.delete("/", response_model=TrashOperationResponse, summary="Esvazia a lixeira")
 def empty_trash(db: Session = Depends(get_db)):
-    """Apaga todas as pastas de ``trash/`` e remove do banco os registros excluídos."""
     removed_directories = 0
 
     for directory in storage_service.list_trash_entries():

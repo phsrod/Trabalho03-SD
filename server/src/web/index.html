@@ -168,7 +168,7 @@
 <body>
 
     <header>
-        <h1>🎧 Sistema de Processamento de Áudio</h1>
+        <h1>Sistema de Processamento de Áudio</h1>
         <p>Áudios armazenados pelo servidor &mdash; ouça o original, o processado e veja a forma de onda.</p>
     </header>
 
@@ -177,7 +177,7 @@
             <option value="">Todos os processamentos</option>
         </select>
         <input id="filtroBusca" type="search" placeholder="Buscar pelo nome do arquivo...">
-        <button id="botaoAtualizar">🔄 Atualizar</button>
+        <button id="botaoAtualizar">Atualizar</button>
         <span id="resumo" class="rotulo"></span>
     </div>
 
@@ -187,7 +187,7 @@
 
         <section id="lixeira">
             <h2>Lixeira</h2>
-            <button id="botaoEsvaziar" class="perigo" type="button">🗑️ Esvaziar lixeira</button>
+            <button id="botaoEsvaziar" class="perigo" type="button">Esvaziar lixeira</button>
             <div id="itensLixeira" style="margin-top: 12px;"></div>
         </section>
     </main>
@@ -289,10 +289,10 @@
                      src="${escapar(audio.waveform_url)}?t=${Date.now()}"
                      onerror="this.replaceWith(Object.assign(document.createElement('p'), {className: 'vazio', textContent: 'waveform.png indisponível para este áudio.'}))">
                 <div class="acoes">
-                    <a href="/audios/${escapar(audio.id)}/download/original">⬇️ Original</a>
-                    <a href="/audios/${escapar(audio.id)}/download/processed">⬇️ Processado</a>
-                    <a href="${escapar(audio.metadata_url)}" target="_blank" rel="noreferrer">📄 meta.json</a>
-                    <button class="perigo" type="button" data-excluir="${escapar(audio.id)}">🗑️ Excluir</button>
+                    <a href="/audios/${escapar(audio.id)}/download/original">Original</a>
+                    <a href="/audios/${escapar(audio.id)}/download/processed">Processado</a>
+                    <a href="${escapar(audio.metadata_url)}" target="_blank" rel="noreferrer">meta.json</a>
+                    <button class="perigo" type="button" data-excluir="${escapar(audio.id)}">Excluir</button>
                 </div>
             `;
 
@@ -333,8 +333,8 @@
                         </span>
                     </div>
                     <div class="acoes">
-                        <button type="button" data-restaurar="${escapar(item.id)}">♻️ Restaurar</button>
-                        <button class="perigo" type="button" data-excluir-lixeira="${escapar(item.id)}">❌ Excluir</button>
+                        <button type="button" data-restaurar="${escapar(item.id)}">Restaurar</button>
+                        <button class="perigo" type="button" data-excluir-lixeira="${escapar(item.id)}">Excluir</button>
                     </div>
                 </div>
             `).join("");

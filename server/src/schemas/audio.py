@@ -1,8 +1,4 @@
-"""Contratos (schemas) da API.
-
-Este módulo é **puro**: não acessa banco nem disco. Quem converte linhas do banco
-em resposta é ``schemas/serializers.py``.
-"""
+#Contratos (schemas) da API.
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
@@ -12,13 +8,11 @@ from pydantic import BaseModel, Field
 
 from ..processing import PROCESSING_CATALOG, PROCESSING_TYPES, ProcessingType
 
-if TYPE_CHECKING:  # evita import circular em tempo de execução
+if TYPE_CHECKING:
     from ..models.audio import Audio
 
 
 class ProcessingTypeInfo(BaseModel):
-    """Descrição de um processamento, usada pelo cliente para montar o menu."""
-
     key: ProcessingType
     label: str
     description: str
@@ -26,19 +20,12 @@ class ProcessingTypeInfo(BaseModel):
 
 
 def build_processing_catalog() -> list[ProcessingTypeInfo]:
-    """Monta a lista de processamentos na ordem definida em ``processing.py``."""
-    return [
-        ProcessingTypeInfo(key=processing_type, **PROCESSING_CATALOG[processing_type])
-        for processing_type in PROCESSING_TYPES
-    ]
+    return [ProcessingTypeInfo(key=processing_type, **PROCESSING_CATALOG[processing_type]) for processing_type in PROCESSING_TYPES]
 
 
 class AudioResponse(BaseModel):
-    """Metadados de um áudio + URLs prontas para uso pelo cliente."""
 
     id: UUID
-
-    # Campos da tabela ``audios`` (referentes ao arquivo ORIGINAL enviado pelo cliente).
     original_name: str
     original_ext: str
     mime_type: str | None = None
@@ -55,12 +42,8 @@ class AudioResponse(BaseModel):
     is_deleted: bool = False
     path_original: str
     path_processed: str
-
-    # Informações do arquivo processado.
     processed_ext: str | None = None
     processed_size_bytes: int | None = None
-
-    # URLs relativas: o cliente deve concatenar com a base_url do servidor.
     original_url: str
     processed_url: str
     waveform_url: str
@@ -72,11 +55,6 @@ class AudioResponse(BaseModel):
         audio: "Audio",
         processed_size_bytes: int | None = None,
     ) -> "AudioResponse":
-        """Converte a linha do banco em resposta.
-
-        O tamanho do arquivo processado é recebido pronto (o schema não consulta o
-        disco): veja ``schemas/serializers.py``.
-        """
         audio_id = audio.id
 
         return cls(
@@ -107,16 +85,12 @@ class AudioResponse(BaseModel):
 
 
 class StoredFile(BaseModel):
-    """Arquivo físico dentro da pasta de um áudio."""
-
     name: str
     relative_path: str
     size_bytes: int
 
 
 class TrashItem(BaseModel):
-    """Item presente na lixeira."""
-
     id: UUID
     directory: str
     size_bytes: int

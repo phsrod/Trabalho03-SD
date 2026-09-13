@@ -1,4 +1,4 @@
-"""Conexão com o PostgreSQL (SQLAlchemy) e preparação do esquema."""
+# Conexão com o PostgreSQL (SQLAlchemy) e preparação do esquema.
 
 import logging
 import time
@@ -23,16 +23,6 @@ Base = declarative_base()
 
 
 def _add_missing_columns() -> None:
-    """Acrescenta à tabela as colunas que já existem no modelo mas ainda não no banco.
-
-    O ``init.sql`` só roda quando o volume do PostgreSQL é criado do zero; assim,
-    quem já tem um banco antigo continua funcionando sem apagar o volume. As colunas
-    são descobertas comparando o modelo (fonte de verdade) com o que o banco tem,
-    então não existe lista duplicada para manter.
-
-    Em um projeto maior o caminho seria usar Alembic; aqui isso resolve o caso de
-    forma explícita e com poucas linhas.
-    """
     from .models.audio import Audio
 
     table_name = Audio.__tablename__
@@ -43,7 +33,6 @@ def _add_missing_columns() -> None:
 
     existing = {column["name"] for column in inspector.get_columns(table_name)}
 
-    # Colunas NOT NULL sem valor padrão não podem ser adicionadas em tabela com dados.
     missing = [
         column
         for column in Audio.__table__.columns
@@ -64,8 +53,6 @@ def _add_missing_columns() -> None:
 
 
 def init_db(retries: int = 15, delay_seconds: float = 2.0) -> None:
-    """Cria as tabelas (se necessário) aguardando o PostgreSQL ficar disponível."""
-    # Import necessário para registrar o modelo no metadata do SQLAlchemy.
     from .models import audio  # noqa: F401
 
     for attempt in range(1, retries + 1):

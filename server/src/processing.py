@@ -1,19 +1,10 @@
-"""Regras de domínio dos processamentos de áudio.
-
-Módulo propositalmente **sem dependências** de FastAPI, SQLAlchemy ou do sistema
-de arquivos: é importado pelos serviços, pelos schemas da API e pelas rotas, o que
-evita que a camada de serviço dependa dos contratos da API (e vice-versa) e mantém
-os limites de validação em um único lugar.
-"""
-
+#Regras de domínio dos processamentos de áudio.
 import re
 from enum import StrEnum
 from typing import Any
 
 
 class ProcessingType(StrEnum):
-    """Processamentos aceitos pelo upload."""
-
     original = "original"
     volume = "volume"
     mono = "mono"
@@ -23,8 +14,6 @@ class ProcessingType(StrEnum):
 
 
 class TargetFormat(StrEnum):
-    """Formatos de saída aceitos no processamento ``format``."""
-
     wav = "wav"
     mp3 = "mp3"
     ogg = "ogg"
@@ -48,19 +37,11 @@ LOUDNESS_TARGET_MAX = 0.0
 
 DEFAULT_TARGET_FORMAT = TargetFormat.wav
 
-PROCESSING_TYPES: tuple[ProcessingType, ...] = (
-    ProcessingType.original,
-    ProcessingType.volume,
-    ProcessingType.mono,
-    ProcessingType.speed,
-    ProcessingType.bitrate,
-    ProcessingType.format,
-)
+PROCESSING_TYPES: tuple[ProcessingType, ...] = (ProcessingType.original, ProcessingType.volume, ProcessingType.mono, ProcessingType.speed, ProcessingType.bitrate, ProcessingType.format,)
 
 TARGET_FORMATS: tuple[str, ...] = tuple(formato.value for formato in TargetFormat)
 
 # Rótulo, descrição e parâmetros aceitos por cada processamento.
-# É a fonte de verdade do endpoint GET /audios/processing-types.
 PROCESSING_CATALOG: dict[ProcessingType, dict[str, Any]] = {
     ProcessingType.original: {
         "label": "Sem processamento",

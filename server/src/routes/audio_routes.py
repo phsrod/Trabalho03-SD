@@ -1,9 +1,4 @@
-"""Rotas HTTP de áudio: upload, histórico, reprodução, metadados e exclusão.
-
-As rotas são finas de propósito: validam o que chega (o FastAPI já aplica as faixas
-declaradas no formulário), delegam para os serviços e traduzem as exceções de
-domínio em status HTTP. Nenhuma regra de negócio mora aqui.
-"""
+# Rotas HTTP de áudio: upload, histórico, reprodução, metadados e exclusão.
 
 import logging
 from collections.abc import AsyncIterator
@@ -11,34 +6,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 from uuid import UUID
-
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-
 from ..config import UPLOAD_CHUNK_SIZE
 from ..dependencies import get_db
 from ..models.audio import Audio
-from ..processing import (
-    BITRATE_PATTERN,
-    DEFAULT_BITRATE,
-    DEFAULT_LOUDNESS_TARGET,
-    DEFAULT_SPEED_FACTOR,
-    DEFAULT_TARGET_FORMAT,
-    LOUDNESS_TARGET_MAX,
-    LOUDNESS_TARGET_MIN,
-    SPEED_FACTOR_MAX,
-    SPEED_FACTOR_MIN,
-    ProcessingType,
-    TargetFormat,
-)
-from ..schemas.audio import (
-    AudioResponse,
-    MessageResponse,
-    ProcessingTypeInfo,
-    StoredFile,
-    build_processing_catalog,
-)
+from ..processing import (BITRATE_PATTERN, DEFAULT_BITRATE, DEFAULT_LOUDNESS_TARGET, DEFAULT_SPEED_FACTOR, DEFAULT_TARGET_FORMAT, LOUDNESS_TARGET_MAX, LOUDNESS_TARGET_MIN, SPEED_FACTOR_MAX, SPEED_FACTOR_MIN, ProcessingType, TargetFormat,)
+from ..schemas.audio import (AudioResponse, MessageResponse, ProcessingTypeInfo, StoredFile, build_processing_catalog,)
 from ..schemas.serializers import to_audio_response
 from ..services import audio_service, storage_service, upload_service
 
@@ -51,13 +26,11 @@ router = APIRouter(prefix="/audios", tags=["Áudios"])
 # Auxiliares
 # --------------------------------------------------------------------------- #
 async def _iter_upload(upload: UploadFile) -> AsyncIterator[bytes]:
-    """Lê o corpo da requisição em blocos (a leitura HTTP fica na camada de rotas)."""
     while chunk := await upload.read(UPLOAD_CHUNK_SIZE):
         yield chunk
 
 
 def _get_audio_or_404(db: Session, audio_id: UUID) -> Audio:
-    """Busca o áudio, respondendo 404 quando não existe e 410 quando está na lixeira."""
     audio = db.get(Audio, audio_id)
 
     if audio is None:
@@ -78,7 +51,6 @@ def _serve_file(
     filename: str,
     disposition: str = "inline",
 ) -> FileResponse:
-    """Devolve um arquivo do disco como resposta HTTP."""
     if not Path(path).is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Arquivo não encontrado no servidor.")
 
@@ -102,11 +74,7 @@ def _serve_file(
 async def upload_audio(
     file: Annotated[
         UploadFile,
-        File(
-            description=(
-                "Arquivo de áudio: wav, mp3, ogg, oga, flac, m4a, aac, opus, wma, aiff, aif ou webm."
-            )
-        ),
+        File(description=("Arquivo de áudio: wav, mp3, ogg, oga, flac, m4a, aac, opus, wma, aiff, aif ou webm.")),
     ],
     processing_type: Annotated[
         ProcessingType,
@@ -141,11 +109,6 @@ async def upload_audio(
     ] = DEFAULT_LOUDNESS_TARGET,
     db: Session = Depends(get_db),
 ):
-    """Recebe o áudio, gera um UUID, processa com FFmpeg e registra os metadados.
-
-    Só os parâmetros do processamento escolhido são considerados; os outros são
-    ignorados (mas continuam sendo validados quando enviados).
-    """
     try:
         audio = await upload_service.receive_and_process(
             db,
@@ -186,8 +149,6 @@ async def upload_audio(
     summary="Lista os processamentos disponíveis",
 )
 def list_processing_types():
-    """Retorna os processamentos aceitos no upload, com rótulo, descrição e
-    parâmetros padrão. Use isso para montar o combo box do cliente."""
     return build_processing_catalog()
 
 
@@ -369,9 +330,6 @@ def download_processed_audio(audio_id: UUID, db: Session = Depends(get_db)):
     summary="Move um áudio para a lixeira",
 )
 def delete_audio(audio_id: UUID, db: Session = Depends(get_db)):
-    """Não apaga nada de verdade: move a pasta do UUID para ``trash/`` e marca
-    ``deleted_at`` no banco. Use ``POST /trash/{id}/restore`` para desfazer."""
-    # Com o áudio já na lixeira, _get_audio_or_404 responde 410 com o caminho de volta.
     audio = _get_audio_or_404(db, audio_id)
     directory = storage_service.audio_directory(audio.path_original)
 

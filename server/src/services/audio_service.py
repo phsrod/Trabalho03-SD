@@ -1,8 +1,4 @@
-"""Inspeção e processamento de áudio usando FFmpeg/FFprobe.
-
-Responsabilidade única: falar com as ferramentas externas. Nada aqui conhece HTTP,
-banco de dados ou layout de pastas (isso fica em ``storage_service``).
-"""
+# Inspeção e processamento de áudio usando FFmpeg/FFprobe.
 
 import json
 import logging
@@ -98,20 +94,19 @@ def normalize_processing_type(processing_type: ProcessingType | str) -> Processi
 
 def _as_float(value: object, default: float) -> float:
     try:
-        return float(value)  # type: ignore[arg-type]
+        return float(value) 
     except (TypeError, ValueError):
         return default
 
 
 def _as_int(value: object, default: int = 0) -> int:
     try:
-        return int(float(value))  # type: ignore[arg-type]
+        return int(float(value))  
     except (TypeError, ValueError):
         return default
 
 
 def _run(command: list[str]) -> subprocess.CompletedProcess:
-    """Executa um comando externo convertendo falhas em ``AudioProcessingError``."""
     try:
         return subprocess.run(command, capture_output=True, text=True, check=True)
     except FileNotFoundError as error:
@@ -131,12 +126,6 @@ def _run(command: list[str]) -> subprocess.CompletedProcess:
 # Parâmetros
 # --------------------------------------------------------------------------- #
 def validate_processing_parameters(processing_type: ProcessingType | str, parameters: dict | None) -> dict:
-    """Valida os parâmetros e devolve apenas os que se aplicam ao processamento escolhido.
-
-    A API já aplica as mesmas faixas no formulário (usando as constantes de
-    ``processing.py``); esta checagem é a segunda barreira, para quando o serviço é
-    chamado diretamente (testes, scripts).
-    """
     processing_type = normalize_processing_type(processing_type)
     raw = dict(parameters or {})
 
@@ -154,10 +143,7 @@ def validate_processing_parameters(processing_type: ProcessingType | str, parame
         factor = _as_float(raw.get("speed_factor"), DEFAULT_SPEED_FACTOR)
 
         if not SPEED_FACTOR_MIN <= factor <= SPEED_FACTOR_MAX:
-            raise InvalidParameterError(
-                f"speed_factor deve estar entre {SPEED_FACTOR_MIN} e {SPEED_FACTOR_MAX} "
-                "(limite do filtro atempo)."
-            )
+            raise InvalidParameterError(f"speed_factor deve estar entre {SPEED_FACTOR_MIN} e {SPEED_FACTOR_MAX} " "(limite do filtro atempo).")
 
         return {"speed_factor": round(factor, 3)}
 
@@ -181,7 +167,6 @@ def validate_processing_parameters(processing_type: ProcessingType | str, parame
 
 
 def _target_format_value(value: object) -> str:
-    """Aceita ``TargetFormat.wav`` ou ``"wav"`` e devolve sempre a string."""
     if isinstance(value, TargetFormat):
         return value.value
 
@@ -194,7 +179,6 @@ def _target_format_value(value: object) -> str:
 def resolve_processed_extension(
     processing_type: ProcessingType | str, original_ext: str, parameters: dict
 ) -> str:
-    """Define a extensão do arquivo processado (que sempre se chama ``audio.<ext>``)."""
     processing_type = normalize_processing_type(processing_type)
     original_ext = original_ext.lower()
 
@@ -213,19 +197,7 @@ def resolve_processed_extension(
 # FFprobe / FFmpeg
 # --------------------------------------------------------------------------- #
 def probe_audio(file_path: Path) -> dict:
-    """Lê duração, taxa de amostragem, canais e bitrate de um arquivo de áudio."""
-    result = _run(
-        [
-            "ffprobe",
-            "-v",
-            "quiet",
-            "-print_format",
-            "json",
-            "-show_format",
-            "-show_streams",
-            str(file_path),
-        ]
-    )
+    result = _run(["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", str(file_path),])
 
     try:
         data = json.loads(result.stdout or "{}")
@@ -259,7 +231,6 @@ def build_processing_command(
     parameters: dict,
     source_sample_rate: int | None = None,
 ) -> tuple[list[str], dict]:
-    """Monta o comando FFmpeg e devolve os parâmetros efetivamente aplicados."""
     processing_type = normalize_processing_type(processing_type)
     base = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(input_path)]
 
@@ -267,7 +238,6 @@ def build_processing_command(
         target = parameters["loudness_target"]
         command = base + ["-filter:a", f"loudnorm=I={target}:TP=-1.5:LRA=11"]
 
-        # O loudnorm reamostra a saída por padrão; preservamos a taxa do original.
         if source_sample_rate:
             command += ["-ar", str(source_sample_rate)]
 
@@ -307,7 +277,6 @@ def process_audio(
     parameters: dict,
     source_sample_rate: int | None = None,
 ) -> dict:
-    """Gera o arquivo processado. Para ``original`` apenas copia o arquivo."""
     processing_type = normalize_processing_type(processing_type)
     input_path = Path(input_path)
     output_path = Path(output_path)
@@ -332,22 +301,6 @@ def create_waveform(
     output_path: Path,
     size: str = DEFAULT_WAVEFORM_SIZE,
 ) -> Path:
-    """Gera a imagem PNG da forma de onda do áudio."""
-    _run(
-        [
-            "ffmpeg",
-            "-y",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-i",
-            str(input_path),
-            "-filter_complex",
-            f"showwavespic=s={size}:colors=#4f8cffff",
-            "-frames:v",
-            "1",
-            str(output_path),
-        ]
-    )
+    _run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(input_path), "-filter_complex", f"showwavespic=s={size}:colors=#4f8cffff", "-frames:v", "1", str(output_path),])
 
     return output_path

@@ -1,22 +1,4 @@
-"""Organização dos arquivos em disco: ``storage/``, ``trash/`` e ``meta.json``.
-
-Layout criado para cada áudio::
-
-    <STORAGE_PATH>/
-    └── 2026-09-13/
-        └── <uuid>/
-            ├── original/audio.<ext>
-            ├── processed/audio.<ext>
-            ├── meta.json
-            └── waveform.png
-
-Os caminhos gravados no banco são **relativos à raiz do storage**
-(``2026-09-13/<uuid>/original/audio.wav``), o que deixa o banco portável: mudar a
-pasta de armazenamento não invalida os registros antigos (ver ``resolve_path``).
-
-Ao excluir um áudio, a pasta ``<uuid>`` inteira vai para ``<TRASH_PATH>/<uuid>``,
-o que torna a exclusão reversível.
-"""
+# Organização dos arquivos em disco: ``storage/``, ``trash/`` e ``meta.json``.
 
 import hashlib
 import json
@@ -43,18 +25,12 @@ HASH_CHUNK_SIZE = 1024 * 1024
 # Caminhos
 # --------------------------------------------------------------------------- #
 def resolve_path(stored_path: str | Path) -> Path:
-    """Converte um caminho do banco (relativo) em caminho absoluto no disco.
-
-    Caminhos absolutos são aceitos como estão, então registros antigos continuam
-    funcionando depois de qualquer mudança de raiz.
-    """
     path = Path(stored_path)
 
     return path if path.is_absolute() else STORAGE_PATH / path
 
 
 def storage_relative_path(path: str | Path) -> str:
-    """Caminho relativo à raiz do storage, do jeito que é gravado no banco e no meta.json."""
     path = Path(path)
 
     try:
@@ -64,27 +40,15 @@ def storage_relative_path(path: str | Path) -> str:
 
 
 def audio_directory(path_original: str | Path) -> Path:
-    """Pasta do UUID de um áudio.
-
-    O layout é ``<storage>/<data>/<uuid>/original/audio.<ext>``; como o nome da pasta
-    é o UUID, voltar dois níveis a partir do arquivo original dá a pasta do áudio.
-    Este é o único lugar que conhece esse layout.
-    """
     return resolve_path(path_original).parent.parent
 
 
 def ensure_base_directories() -> None:
-    """Garante que as pastas base de armazenamento existam."""
     STORAGE_PATH.mkdir(parents=True, exist_ok=True)
     TRASH_PATH.mkdir(parents=True, exist_ok=True)
 
 
 def safe_filename(filename: str | None) -> str:
-    """Remove diretórios e caracteres perigosos do nome enviado pelo cliente.
-
-    O nome guardado em disco é sempre ``audio.<ext>``; este valor é usado apenas como
-    metadado (nome original), então basta impedir separadores de caminho.
-    """
     candidate = (filename or "").replace("\\", "/").split("/")[-1].strip()
 
     if not candidate:
@@ -94,12 +58,10 @@ def safe_filename(filename: str | None) -> str:
 
 
 def build_audio_directory(audio_id: UUID | str, reference_date: date) -> Path:
-    """Caminho definitivo da pasta do áudio, organizado por data e UUID."""
     return STORAGE_PATH / reference_date.isoformat() / str(audio_id)
 
 
 def create_audio_directory(audio_id: UUID | str, reference_date: date | None = None) -> Path:
-    """Cria a pasta do áudio com as subpastas ``original/`` e ``processed/``."""
     reference_date = reference_date or date.today()
     directory = build_audio_directory(audio_id, reference_date)
 
@@ -110,14 +72,12 @@ def create_audio_directory(audio_id: UUID | str, reference_date: date | None = N
 
 
 def audio_file_path(directory: Path, folder: str, extension: str) -> Path:
-    """Todo arquivo de áudio armazenado chama-se ``audio.<ext>``."""
     extension = extension.lower().lstrip(".")
 
     return directory / folder / f"{AUDIO_FILE_STEM}.{extension}"
 
 
 def reference_date_from_path(path_original: str | Path) -> date:
-    """Descobre a data usada na pasta a partir do caminho gravado no banco."""
     directory = audio_directory(path_original)
 
     try:
@@ -130,7 +90,6 @@ def reference_date_from_path(path_original: str | Path) -> date:
 # Arquivos e metadados
 # --------------------------------------------------------------------------- #
 def sha256_file(file_path: Path) -> str:
-    """Calcula o checksum SHA-256 do arquivo (usado no ``meta.json``)."""
     digest = hashlib.sha256()
 
     with open(file_path, "rb") as file:
@@ -141,7 +100,6 @@ def sha256_file(file_path: Path) -> str:
 
 
 def file_size(file_path: str | Path | None) -> int | None:
-    """Tamanho em bytes, ou ``None`` quando o arquivo não existe."""
     if file_path is None:
         return None
 
@@ -156,7 +114,6 @@ def directory_size(directory: Path) -> int:
 
 
 def list_files(directory: Path) -> list[dict]:
-    """Lista os arquivos de uma pasta de áudio com caminhos relativos."""
     directory = Path(directory)
 
     if not directory.is_dir():
@@ -174,7 +131,6 @@ def list_files(directory: Path) -> list[dict]:
 
 
 def write_metadata_file(directory: Path, data: dict) -> Path:
-    """Grava o ``meta.json`` dentro da pasta do áudio."""
     metadata_path = Path(directory) / METADATA_FILE_NAME
 
     with open(metadata_path, "w", encoding="utf-8") as metadata_file:
@@ -184,7 +140,6 @@ def write_metadata_file(directory: Path, data: dict) -> Path:
 
 
 def read_metadata_file(directory: Path) -> dict:
-    """Lê o ``meta.json`` da pasta do áudio (levanta ``FileNotFoundError`` se não existir)."""
     metadata_path = Path(directory) / METADATA_FILE_NAME
 
     if not metadata_path.is_file():
@@ -215,7 +170,6 @@ def move_to_trash(directory: Path, audio_id: UUID | str) -> Path:
 
 
 def restore_from_trash(audio_id: UUID | str, reference_date: date) -> Path:
-    """Traz a pasta de ``trash/<uuid>`` de volta para ``storage/<data>/<uuid>``."""
     source = trash_directory(audio_id)
 
     if not source.is_dir():
@@ -233,7 +187,6 @@ def restore_from_trash(audio_id: UUID | str, reference_date: date) -> Path:
 
 
 def list_trash_entries() -> list[Path]:
-    """Lista as pastas presentes na lixeira."""
     if not TRASH_PATH.is_dir():
         return []
 
@@ -241,5 +194,4 @@ def list_trash_entries() -> list[Path]:
 
 
 def remove_directory(directory: Path) -> None:
-    """Remove uma pasta inteira (usado em falhas de upload e limpeza da lixeira)."""
     shutil.rmtree(directory, ignore_errors=True)

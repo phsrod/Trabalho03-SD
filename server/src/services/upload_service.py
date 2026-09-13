@@ -1,10 +1,4 @@
-"""Pipeline de recebimento de um áudio enviado pelo cliente.
-
-Toda a orquestração do upload fica aqui (gravar, inspecionar, processar, gerar a
-waveform e o ``meta.json``, registrar no banco e limpar tudo em caso de falha). A
-rota apenas lê o corpo da requisição em blocos e traduz as exceções deste módulo em
-status HTTP.
-"""
+# Pipeline de recebimento de um áudio enviado pelo cliente.
 
 import logging
 from collections.abc import AsyncIterable
@@ -172,15 +166,7 @@ async def receive_and_process(
     processing_type: ProcessingType | str,
     parameters: dict | None = None,
 ) -> Audio:
-    """Recebe o áudio, processa com FFmpeg e registra o resultado no banco.
-
-    Ordem: valida extensão e parâmetros -> cria a pasta do UUID -> grava o original ->
-    inspeciona com o FFprobe -> gera o arquivo processado -> gera ``waveform.png`` ->
-    grava ``meta.json`` -> insere a linha em ``audios``.
-
-    A validação acontece **antes** de criar a pasta e qualquer falha depois disso
-    apaga o diretório inteiro, então nunca sobra lixo no storage.
-    """
+    
     original_name, extension = validate_extension(filename)
     applied_params = audio_service.validate_processing_parameters(processing_type, parameters)
     normalized_type = audio_service.normalize_processing_type(processing_type)
