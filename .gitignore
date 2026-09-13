@@ -1,6 +1,7 @@
 # Pastas 
 server/storage/*
 server/trash/*
+docs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
