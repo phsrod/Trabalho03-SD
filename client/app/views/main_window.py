@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QLabel, QMainWindow, QVBoxLayout, QWidget
 
 from views.file_selector import FileSelector
+from views.playback_selector import PlaybackSection
 from views.processing_selector import ProcessingSection
 
 
@@ -26,5 +27,11 @@ class MainWindow(QMainWindow):
 
         self.processing_section = ProcessingSection()
         layout.addWidget(self.processing_section)
+
+        self.playback_section = PlaybackSection()
+        layout.addWidget(self.playback_section)
+        self.file_section.audio_selected.connect(
+            self.playback_section.set_original_audio
+        )
 
         layout.addStretch()

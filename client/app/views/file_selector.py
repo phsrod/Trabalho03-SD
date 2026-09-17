@@ -1,4 +1,4 @@
-from PySide6.QtCore import QFileInfo
+from PySide6.QtCore import QFileInfo, Signal
 from PySide6.QtWidgets import (
     QFileDialog,
     QGroupBox,
@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 
 
 class FileSelector(QGroupBox):
+    audio_selected = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__("Arquivo", parent)
@@ -54,6 +55,7 @@ class FileSelector(QGroupBox):
             self.file_label.setText(file_path)
             self.format_value.setText(file_info.suffix().upper() or "-")
             self.size_value.setText(self.format_file_size(file_info.size()))
+            self.audio_selected.emit(file_path)
 
     @staticmethod
     def format_file_size(size_in_bytes):
