@@ -12,6 +12,7 @@ class Waveform(QWidget):
 
     @staticmethod
     def create_preview_samples():
+        """Cria uma lista de amostras de forma de onda de pré-visualização para exibição quando nenhum áudio real estiver disponível."""
         return [
             0.18, 0.32, 0.52, 0.78, 0.46, 0.25, 0.16, 0.38,
             0.68, 0.88, 0.56, 0.28, 0.18, 0.35, 0.62, 0.44,
@@ -20,15 +21,18 @@ class Waveform(QWidget):
         ]
 
     def set_samples(self, samples):
+        """Define as amostras de forma de onda a serem exibidas e atualiza a exibição."""
         self.samples = list(samples) or self.create_preview_samples()
         self.update()
 
     def set_position(self, position, duration):
+        """Define a posição atual de reprodução como uma proporção da duração total e atualiza a exibição."""
         self.position_ratio = position / duration if duration > 0 else 0.0
         self.position_ratio = max(0.0, min(1.0, self.position_ratio))
         self.update()
 
     def paintEvent(self, event):
+        """Renderiza a forma de onda e o indicador de posição atual na tela."""
         del event
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

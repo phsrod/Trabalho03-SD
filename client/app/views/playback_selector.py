@@ -38,12 +38,14 @@ class PlaybackSection(QGroupBox):
 
     @staticmethod
     def create_player():
+        """Cria um player de áudio e um objeto de saída de áudio associados."""
         player = QMediaPlayer()
         audio_output = QAudioOutput()
         player.setAudioOutput(audio_output)
         return player, audio_output
 
     def create_controls(self, title, player):
+        """Cria os controles de reprodução para um player de áudio específico, incluindo o título, a forma de onda e os botões de reprodução/pausa."""
         section_layout = QVBoxLayout()
         section_layout.setSpacing(6)
         header_layout = QHBoxLayout()
@@ -92,6 +94,7 @@ class PlaybackSection(QGroupBox):
 
     @staticmethod
     def update_playback_position(waveform, time_label, player, position):
+        """Atualiza a posição da forma de onda e o rótulo de tempo com base na posição atual do player."""
         duration = player.duration()
         waveform.set_position(position, duration)
         time_label.setText(
@@ -101,15 +104,19 @@ class PlaybackSection(QGroupBox):
 
     @staticmethod
     def format_time(milliseconds):
+        """Formata o tempo em milissegundos para o formato MM:SS."""
         total_seconds = max(0, milliseconds // 1000)
         minutes, seconds = divmod(total_seconds, 60)
         return f"{minutes:02d}:{seconds:02d}"
 
     def set_original_audio(self, file_path):
+        """Define o arquivo de áudio original para reprodução."""
         self.original_player.setSource(QUrl.fromLocalFile(str(Path(file_path))))
 
     def set_processed_audio(self, file_path):
+        """Define o arquivo de áudio processado para reprodução."""
         self.processed_player.setSource(QUrl.fromLocalFile(str(Path(file_path))))
 
     def set_processed_audio_url(self, url):
+        """Define a URL do áudio processado para reprodução."""
         self.processed_player.setSource(QUrl(url))

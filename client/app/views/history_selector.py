@@ -64,6 +64,7 @@ class HistorySection(QGroupBox):
         self.api.fetch_history()
 
     def set_history(self, records):
+        """Atualiza a tabela de histórico com os registros fornecidos.  """
         self.table.setRowCount(0)
         for record in records:
             row = self.table.rowCount()
@@ -85,6 +86,7 @@ class HistorySection(QGroupBox):
         self.status_label.setText(f"{len(records)} registro(s)")
 
     def show_request_error(self, message):
+        """Exibe uma mensagem de erro na seção de histórico quando a solicitação falha."""
         self.status_label.setText(f"Erro ao carregar histórico: {message}")
 
     @staticmethod

@@ -23,6 +23,7 @@ class AudioApi(QObject):
         self._active_upload = None
 
     def upload_audio(self, file_path, processing_type, speed_factor=1.5, target_format="wav"):
+        """Envia um áudio e os parâmetros de processamento para a API."""
         audio_file = Path(file_path)
         if not audio_file.is_file():
             self.request_failed.emit("Arquivo de áudio não encontrado.")
@@ -63,6 +64,7 @@ class AudioApi(QObject):
 
     @staticmethod
     def append_form_field(multipart, name, value):
+        """Adiciona um campo de formulário ao objeto QHttpMultiPart."""
         part = QHttpPart()
         part.setHeader(
             QNetworkRequest.KnownHeaders.ContentDispositionHeader,
@@ -72,6 +74,7 @@ class AudioApi(QObject):
         multipart.append(part)
 
     def _handle_upload_response(self, reply):
+        """Manipula a resposta do servidor após o upload de áudio."""
         response_body = bytes(reply.readAll())
         status_code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
         request_succeeded = status_code is not None and 200 <= status_code < 300
@@ -88,6 +91,7 @@ class AudioApi(QObject):
         reply.deleteLater()
 
     def fetch_history(self):
+        """Solicita à API o histórico de áudios armazenados."""
         if self._active_reply is not None:
             self._active_reply.deleteLater()
 
@@ -96,6 +100,7 @@ class AudioApi(QObject):
         self._active_reply.finished.connect(self._handle_history_response)
 
     def _handle_history_response(self):
+        """Manipula a resposta do servidor após a solicitação do histórico de áudios."""
         reply = self._active_reply
         self._active_reply = None
 

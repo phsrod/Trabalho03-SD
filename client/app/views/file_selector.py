@@ -47,6 +47,7 @@ class FileSelector(QGroupBox):
         layout.addLayout(info_layout)
 
     def select_audio(self):
+        """Abre um diálogo para selecionar um arquivo de áudio e atualiza as informações do arquivo selecionado."""
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Selecionar arquivo de áudio",
@@ -65,10 +66,12 @@ class FileSelector(QGroupBox):
             self.audio_selected.emit(file_path)
 
     def update_duration(self, duration_in_milliseconds):
+        """Atualiza o rótulo de duração com base na duração do áudio em milissegundos."""
         self.duration_value.setText(self.format_duration(duration_in_milliseconds))
 
     @staticmethod
     def format_file_size(size_in_bytes):
+        """Formata o tamanho do arquivo em bytes para uma representação legível (B, KB, MB)."""
         if size_in_bytes < 1024:
             return f"{size_in_bytes} B"
         if size_in_bytes < 1024 * 1024:
@@ -77,6 +80,7 @@ class FileSelector(QGroupBox):
 
     @staticmethod
     def format_duration(duration_in_milliseconds):
+        """Formata a duração em milissegundos para o formato "mm:ss"."""
         total_seconds = max(0, duration_in_milliseconds // 1000)
         minutes, seconds = divmod(total_seconds, 60)
         return f"{minutes:02d}:{seconds:02d}"

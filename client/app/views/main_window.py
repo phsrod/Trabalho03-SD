@@ -47,6 +47,7 @@ class MainWindow(QMainWindow):
         layout.addStretch()
 
     def process_audio(self):
+        """Envia o arquivo de áudio selecionado para processamento com os parâmetros especificados na seção de processamento."""
         file_path = self.file_section.selected_file_path
         if not file_path:
             self.processing_section.status_label.setText(
@@ -70,6 +71,7 @@ class MainWindow(QMainWindow):
         )
 
     def handle_upload_success(self, record):
+        """Atualiza a interface após o upload bem-sucedido do áudio processado."""
         processed_url = record.get("processed_url")
         if processed_url:
             self.playback_section.set_processed_audio_url(
@@ -81,4 +83,5 @@ class MainWindow(QMainWindow):
         self.history_section.api.fetch_history()
 
     def handle_api_error(self, message):
+        """Exibe uma mensagem de erro na seção de processamento quando a solicitação falha."""
         self.processing_section.status_label.setText(f"Erro: {message}")

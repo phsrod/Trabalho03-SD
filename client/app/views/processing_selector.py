@@ -64,6 +64,7 @@ class ProcessingSection(QGroupBox):
         self.update_processing_parameters()
 
     def update_processing_parameters(self):
+        """Atualiza a visibilidade dos parâmetros de processamento com base no tipo de processamento selecionado."""
         processing_type = self.processing_combo.currentData()
         show_speed = processing_type == "speed"
         show_format = processing_type == "format"
