@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QLabel, QMainWindow, QVBoxLayout, QWidget
 
-from services.audio_api import AudioApi
+from services.audio_api import DEFAULT_BASE_URL, AudioApi
 from views.file_selector import FileSelector
 from views.history_selector import HistorySection
 from views.playback_selector import PlaybackSection
@@ -9,8 +9,8 @@ from views.processing_selector import ProcessingSection
 
 class MainWindow(QMainWindow):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, base_url=DEFAULT_BASE_URL, parent=None):
+        super().__init__(parent)
 
         self.setWindowTitle("Processador de Áudio")
         self.resize(960, 800)
@@ -30,7 +30,7 @@ class MainWindow(QMainWindow):
         self.processing_section = ProcessingSection()
         layout.addWidget(self.processing_section)
 
-        self.audio_api = AudioApi(parent=self)
+        self.audio_api = AudioApi(base_url, parent=self)
         self.processing_section.process_button.clicked.connect(self.process_audio)
         self.audio_api.upload_succeeded.connect(self.handle_upload_success)
         self.audio_api.request_failed.connect(self.handle_api_error)
@@ -41,7 +41,7 @@ class MainWindow(QMainWindow):
             self.playback_section.set_original_audio
         )
 
-        self.history_section = HistorySection()
+        self.history_section = HistorySection(base_url)
         layout.addWidget(self.history_section)
 
         layout.addStretch()

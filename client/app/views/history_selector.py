@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from services.audio_api import AudioApi
+from services.audio_api import DEFAULT_BASE_URL, AudioApi
 
 
 class HistorySection(QGroupBox):
@@ -28,10 +28,10 @@ class HistorySection(QGroupBox):
         "original": "Sem processamento",
     }
 
-    def __init__(self, parent=None):
+    def __init__(self, base_url=DEFAULT_BASE_URL, parent=None):
         super().__init__("Histórico", parent)
 
-        self.api = AudioApi(parent=self)
+        self.api = AudioApi(base_url, parent=self)
         self.api.history_loaded.connect(self.set_history)
         self.api.request_failed.connect(self.show_request_error)
 

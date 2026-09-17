@@ -9,13 +9,15 @@ from PySide6.QtNetwork import (
     QNetworkRequest,
 )
 
+DEFAULT_BASE_URL = "http://127.0.0.1:8000"
+
 
 class AudioApi(QObject):
     history_loaded = Signal(list)
     upload_succeeded = Signal(dict)
     request_failed = Signal(str)
 
-    def __init__(self, base_url="http://127.0.0.1:8000", parent=None):
+    def __init__(self, base_url=DEFAULT_BASE_URL, parent=None):
         super().__init__(parent)
         self.base_url = base_url.rstrip("/")
         self.network_manager = QNetworkAccessManager(self)
