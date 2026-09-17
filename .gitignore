@@ -2,6 +2,7 @@
 server/storage/*
 server/trash/*
 docs/
+server/src/web/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
