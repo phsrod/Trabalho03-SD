@@ -4,11 +4,16 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QGroupBox,
+    QHBoxLayout,
     QHeaderView,
+    QLabel,
+    QPushButton,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
 )
+
+from services.audio_api import AudioApi
 
 
 class HistorySection(QGroupBox):
@@ -26,6 +31,18 @@ class HistorySection(QGroupBox):
     def __init__(self, parent=None):
         super().__init__("Histórico", parent)
 
+        self.api = AudioApi(parent=self)
+        self.api.history_loaded.connect(self.set_history)
+        self.api.request_failed.connect(self.show_request_error)
+
+        refresh_button = QPushButton("Atualizar histórico")
+        refresh_button.clicked.connect(self.api.fetch_history)
+        self.status_label = QLabel("Carregando histórico...")
+        actions_layout = QHBoxLayout()
+        actions_layout.addWidget(self.status_label)
+        actions_layout.addStretch()
+        actions_layout.addWidget(refresh_button)
+
         self.table = QTableWidget(0, len(self.HEADERS))
         self.table.setHorizontalHeaderLabels(self.HEADERS)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -41,7 +58,10 @@ class HistorySection(QGroupBox):
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
 
         layout = QVBoxLayout(self)
+        layout.addLayout(actions_layout)
         layout.addWidget(self.table)
+
+        self.api.fetch_history()
 
     def set_history(self, records):
         self.table.setRowCount(0)
@@ -62,6 +82,10 @@ class HistorySection(QGroupBox):
                 item = QTableWidgetItem(value)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(row, column, item)
+        self.status_label.setText(f"{len(records)} registro(s)")
+
+    def show_request_error(self, message):
+        self.status_label.setText(f"Erro ao carregar histórico: {message}")
 
     @staticmethod
     def format_date(value):

@@ -110,3 +110,6 @@ class PlaybackSection(QGroupBox):
 
     def set_processed_audio(self, file_path):
         self.processed_player.setSource(QUrl.fromLocalFile(str(Path(file_path))))
+
+    def set_processed_audio_url(self, url):
+        self.processed_player.setSource(QUrl(url))

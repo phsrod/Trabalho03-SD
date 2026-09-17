@@ -58,6 +58,9 @@ class ProcessingSection(QGroupBox):
         )
         layout.addRow("", self.process_button)
 
+        self.status_label = QLabel("")
+        layout.addRow(self.status_label)
+
         self.update_processing_parameters()
 
     def update_processing_parameters(self):
