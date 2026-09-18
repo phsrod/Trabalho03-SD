@@ -459,19 +459,13 @@ Extensões aceitas no upload: `wav, mp3, ogg, oga, flac, m4a, aac, opus, wma, ai
 
 Solicitação do endereço (IP/porta) antes de abrir a janela e validação via `GET /health`.
 
-![Diálogo de conexão com o servidor](.github/media/dialogo-conexao.png)
+![Diálogo de conexão com o servidor](.github/media/janela_dialogo.png)
 
 ### Janela principal
 
 Seções de **Arquivo**, **Processamento**, **Reprodução** e **Histórico** em uma única tela.
 
-![Janela principal do cliente](.github/media/janela-principal.png)
-
-### Histórico e reprodução
-
-As duas formas de onda reais, o indicador de posição e a tabela do histórico preenchida.
-
-![Histórico e reprodução no cliente](.github/media/historico-e-reproducao.png)
+![Janela principal do cliente](.github/media/janela_principal.png)
 
 ---
 
@@ -519,10 +513,6 @@ Trabalho03-SD/
         └── services/                # upload, processamento e armazenamento
 ```
 
-Print da árvore de arquivos aberta no editor:
-
-![Organização dos arquivos do projeto](.github/media/estrutura-projeto.png)
-
 ### Organização no servidor (storage)
 
 Cada áudio ganha uma pasta própria, agrupada por data e nomeada com o UUID informado pela API:
@@ -555,11 +545,11 @@ docker compose exec server find /app/storage -type f | sort
 
 ---
 
-## Vídeo demonstrativo (opcional)
+## Vídeo demonstrativo
 
 Demonstração em vídeo do fluxo completo: conexão com o servidor, envio de um áudio, processamento, comparação entre original e processado e leitura do histórico.
 
-[▶ Assistir à demonstração](.github/media/demo.mp4)
+[▶ Assistir à demonstração](.github/media/video_demonstrativo.mp4)
 
 ---
 
