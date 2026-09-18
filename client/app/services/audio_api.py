@@ -16,6 +16,8 @@ class AudioApi(QObject):
     history_loaded = Signal(list)
     upload_succeeded = Signal(dict)
     request_failed = Signal(str)
+    original_waveform_loaded = Signal(object)
+    processed_waveform_loaded = Signal(object)
 
     def __init__(self, base_url=DEFAULT_BASE_URL, parent=None):
         super().__init__(parent)
@@ -126,3 +128,30 @@ class AudioApi(QObject):
             self.history_loaded.emit(records)
         finally:
             reply.deleteLater()
+
+    def fetch_waveforms(self, record):
+        """Busca as formas de onda do áudio original e do processado do registro."""
+        self._fetch_waveform(record.get("waveform_original_url"), self.original_waveform_loaded)
+        self._fetch_waveform(record.get("waveform_url"), self.processed_waveform_loaded)
+
+    def _fetch_waveform(self, waveform_url, loaded_signal):
+        """Baixa o PNG da forma de onda e emite os bytes no sinal informado.
+
+        Uma falha aqui não atrapalha o resto do cliente: o widget de forma de onda
+        segue mostrando o desenho padrão, então nada é exibido ao usuário.
+        """
+        if not waveform_url:
+            return
+
+        request = QNetworkRequest(QUrl(f"{self.base_url}{waveform_url}"))
+        reply = self.network_manager.get(request)
+        reply.finished.connect(lambda: self._handle_waveform_response(reply, loaded_signal))
+
+    def _handle_waveform_response(self, reply, loaded_signal):
+        """Entrega a imagem apenas quando o servidor responde com sucesso."""
+        image_data = bytes(reply.readAll())
+        status_code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
+        reply.deleteLater()
+
+        if image_data and status_code is not None and 200 <= status_code < 300:
+            loaded_signal.emit(image_data)

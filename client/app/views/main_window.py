@@ -40,6 +40,12 @@ class MainWindow(QMainWindow):
         self.file_section.audio_selected.connect(
             self.playback_section.set_original_audio
         )
+        self.audio_api.original_waveform_loaded.connect(
+            self.playback_section.set_original_waveform
+        )
+        self.audio_api.processed_waveform_loaded.connect(
+            self.playback_section.set_processed_waveform
+        )
 
         self.history_section = HistorySection(base_url)
         layout.addWidget(self.history_section)
@@ -77,6 +83,7 @@ class MainWindow(QMainWindow):
             self.playback_section.set_processed_audio_url(
                 f"{self.audio_api.base_url}{processed_url}"
             )
+        self.audio_api.fetch_waveforms(record)
         self.processing_section.status_label.setText(
             f"Processamento concluído! Áudio processado recebido."
         )

@@ -110,8 +110,20 @@ class PlaybackSection(QGroupBox):
         return f"{minutes:02d}:{seconds:02d}"
 
     def set_original_audio(self, file_path):
-        """Define o arquivo de áudio original para reprodução."""
+        """Define o arquivo de áudio original para reprodução.
+
+        A forma de onda anterior é limpa: ela pertencia ao arquivo enviado antes.
+        """
+        self.original_waveform.set_image(None)
         self.original_player.setSource(QUrl.fromLocalFile(str(Path(file_path))))
+
+    def set_original_waveform(self, image_data):
+        """Mostra a forma de onda do áudio original gerada pelo servidor."""
+        self.original_waveform.set_image(image_data)
+
+    def set_processed_waveform(self, image_data):
+        """Mostra a forma de onda do áudio processado gerada pelo servidor."""
+        self.processed_waveform.set_image(image_data)
 
     def set_processed_audio(self, file_path):
         """Define o arquivo de áudio processado para reprodução."""

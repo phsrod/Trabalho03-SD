@@ -1,14 +1,23 @@
-from PySide6.QtGui import QPainter, QPen
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
 
 class Waveform(QWidget):
+    """Forma de onda do áudio com o indicador da posição de reprodução.
+
+    Mostra a imagem gerada pelo servidor (``waveform-original.png`` ou
+    ``waveform-processed.png``). Enquanto nenhuma imagem foi recebida, desenha uma
+    pré-visualização genérica, para o player não ficar vazio.
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.samples = self.create_preview_samples()
         self.position_ratio = 0.0
-        self.setMinimumHeight(44)
+        self.image = None
+        self.scaled_image = None
+        self.setMinimumHeight(80)
 
     @staticmethod
     def create_preview_samples():
@@ -25,21 +34,49 @@ class Waveform(QWidget):
         self.samples = list(samples) or self.create_preview_samples()
         self.update()
 
+    def set_image(self, image_data):
+        """Mostra a imagem de forma de onda recebida do servidor.
+
+        Sem dados válidos (ou com ``None``) volta para a pré-visualização genérica,
+        o que também limpa a forma de onda de um áudio anterior.
+        """
+        image = QPixmap()
+
+        if image_data and image.loadFromData(image_data) and not image.isNull():
+            self.image = image
+        else:
+            self.image = None
+
+        self.scaled_image = None
+        self.update()
+
     def set_position(self, position, duration):
         """Define a posição atual de reprodução como uma proporção da duração total e atualiza a exibição."""
         self.position_ratio = position / duration if duration > 0 else 0.0
         self.position_ratio = max(0.0, min(1.0, self.position_ratio))
         self.update()
 
+    def resizeEvent(self, event):
+        """Descarta a imagem redimensionada quando o widget muda de tamanho."""
+        self.scaled_image = None
+        super().resizeEvent(event)
+
     def paintEvent(self, event):
         """Renderiza a forma de onda e o indicador de posição atual na tela."""
         del event
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.fillRect(self.rect(), self.palette().alternateBase().color())
 
-        background = self.palette().alternateBase().color()
-        painter.fillRect(self.rect(), background)
+        if self.image is None:
+            self.draw_preview(painter)
+        else:
+            self.draw_image(painter)
 
+        self.draw_position(painter)
+
+    def draw_preview(self, painter):
+        """Desenha as barras de pré-visualização quando não há imagem do servidor."""
         center_y = self.height() / 2
         bar_width = max(1.5, self.width() / (len(self.samples) * 1.8))
         spacing = bar_width * 0.8
@@ -52,6 +89,22 @@ class Waveform(QWidget):
             half_height = max(2.0, amplitude * (self.height() - 12) / 2)
             painter.drawLine(x, center_y - half_height, x, center_y + half_height)
 
+    def draw_image(self, painter):
+        """Desenha a imagem do servidor ocupando toda a largura e centralizada na altura.
+
+        A imagem é maior que o widget (1200x400), então a parte que sobra é cortada
+        pelo próprio Qt — o que mantém a proporção da onda sem achatar as barras.
+        """
+        if self.scaled_image is None:
+            self.scaled_image = self.image.scaledToWidth(
+                max(1, self.width()), Qt.TransformationMode.SmoothTransformation
+            )
+
+        y = (self.height() - self.scaled_image.height()) // 2
+        painter.drawPixmap(0, y, self.scaled_image)
+
+    def draw_position(self, painter):
+        """Desenha a linha vertical da posição atual da reprodução."""
         indicator_x = self.position_ratio * self.width()
         painter.setPen(QPen(self.palette().brightText().color(), 1.5))
         painter.drawLine(indicator_x, 2, indicator_x, self.height() - 2)
