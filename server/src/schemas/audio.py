@@ -47,6 +47,7 @@ class AudioResponse(BaseModel):
     original_url: str
     processed_url: str
     waveform_url: str
+    waveform_original_url: str
     metadata_url: str
 
     @classmethod
@@ -80,6 +81,7 @@ class AudioResponse(BaseModel):
             original_url=f"/audios/{audio_id}/original",
             processed_url=f"/audios/{audio_id}/processed",
             waveform_url=f"/audios/{audio_id}/waveform",
+            waveform_original_url=f"/audios/{audio_id}/waveform/original",
             metadata_url=f"/audios/{audio_id}/meta",
         )
 

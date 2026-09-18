@@ -45,6 +45,21 @@ def _get_audio_or_404(db: Session, audio_id: UUID) -> Audio:
     return audio
 
 
+def _waveform_response(audio: Audio, kind: str) -> FileResponse:
+    path = storage_service.resolve_waveform_path(
+        storage_service.audio_directory(audio.path_original), kind
+    )
+
+    if path is None:
+        onde = "do áudio original" if kind == "original" else "do áudio processado"
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"A forma de onda {onde} não está disponível para este áudio.",
+        )
+
+    return FileResponse(path, media_type="image/png", filename=f"waveform-{kind}-{audio.id}.png")
+
+
 def _serve_file(
     path: str | Path,
     media_type: str,
@@ -269,18 +284,32 @@ def get_processed_audio(audio_id: UUID, db: Session = Depends(get_db)):
 
 @router.get(
     "/{audio_id}/waveform",
-    summary="Retorna a imagem da forma de onda",
+    summary="Retorna a forma de onda do áudio processado",
     response_class=FileResponse,
 )
 def get_waveform(audio_id: UUID, db: Session = Depends(get_db)):
-    """Devolve o ``waveform.png`` gerado automaticamente no upload."""
-    audio = _get_audio_or_404(db, audio_id)
+    """Forma de onda do arquivo processado (mesma imagem de ``/waveform/processed``)."""
+    return _waveform_response(_get_audio_or_404(db, audio_id), "processed")
 
-    return _serve_file(
-        storage_service.audio_directory(audio.path_original) / storage_service.WAVEFORM_FILE_NAME,
-        "image/png",
-        f"waveform-{audio.id}.png",
-    )
+
+@router.get(
+    "/{audio_id}/waveform/original",
+    summary="Retorna a forma de onda do áudio original",
+    response_class=FileResponse,
+)
+def get_original_waveform(audio_id: UUID, db: Session = Depends(get_db)):
+    """Forma de onda do arquivo enviado (antes do processamento)."""
+    return _waveform_response(_get_audio_or_404(db, audio_id), "original")
+
+
+@router.get(
+    "/{audio_id}/waveform/processed",
+    summary="Retorna a forma de onda do áudio processado",
+    response_class=FileResponse,
+)
+def get_processed_waveform(audio_id: UUID, db: Session = Depends(get_db)):
+    """Forma de onda do resultado (é o que o arquivo ``waveform.png`` antigo continha)."""
+    return _waveform_response(_get_audio_or_404(db, audio_id), "processed")
 
 
 # --------------------------------------------------------------------------- #

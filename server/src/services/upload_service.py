@@ -52,7 +52,8 @@ class StoredAudio:
     size_bytes: int
     original_metadata: dict
     processed_metadata: dict
-    waveform_created: bool
+    original_waveform_created: bool
+    processed_waveform_created: bool
 
     def to_metadata_document(self) -> dict:
         """Conteúdo do ``meta.json`` (checksum, parâmetros usados e metadados dos arquivos)."""
@@ -69,7 +70,16 @@ class StoredAudio:
                 "directory": storage_service.storage_relative_path(self.directory),
                 "original": storage_service.storage_relative_path(self.original_path),
                 "processed": storage_service.storage_relative_path(self.processed_path),
-                "waveform": (storage_service.WAVEFORM_FILE_NAME if self.waveform_created else None),
+                "waveform_original": (
+                    storage_service.WAVEFORM_ORIGINAL_FILE_NAME
+                    if self.original_waveform_created
+                    else None
+                ),
+                "waveform_processed": (
+                    storage_service.WAVEFORM_PROCESSED_FILE_NAME
+                    if self.processed_waveform_created
+                    else None
+                ),
                 "metadata": storage_service.METADATA_FILE_NAME,
             },
             "original": {
@@ -146,7 +156,12 @@ async def _create_waveform(input_path: Path, output_path: Path, audio_id: UUID) 
     try:
         await run_in_threadpool(audio_service.create_waveform, input_path, output_path)
     except audio_service.AudioProcessingError as error:
-        logger.warning("Não foi possível gerar a waveform de %s: %s", audio_id, error)
+        logger.warning(
+            "Não foi possível gerar a waveform de %s (%s): %s",
+            audio_id,
+            output_path.name,
+            error,
+        )
         return False
 
     return True
@@ -204,8 +219,16 @@ async def receive_and_process(
 
         processed_metadata = await run_in_threadpool(audio_service.probe_audio, processed_path)
         checksum = await run_in_threadpool(storage_service.sha256_file, original_path)
-        waveform_created = await _create_waveform(
-            processed_path, directory / storage_service.WAVEFORM_FILE_NAME, audio_id
+        # Uma waveform para cada player do cliente: a do arquivo enviado e a do resultado.
+        original_waveform_created = await _create_waveform(
+            original_path,
+            storage_service.waveform_file_path(directory, "original"),
+            audio_id,
+        )
+        processed_waveform_created = await _create_waveform(
+            processed_path,
+            storage_service.waveform_file_path(directory, "processed"),
+            audio_id,
         )
 
         stored = StoredAudio(
@@ -223,7 +246,8 @@ async def receive_and_process(
             size_bytes=size_bytes,
             original_metadata=original_metadata,
             processed_metadata=processed_metadata,
-            waveform_created=waveform_created,
+            original_waveform_created=original_waveform_created,
+            processed_waveform_created=processed_waveform_created,
         )
 
         storage_service.write_metadata_file(directory, stored.to_metadata_document())

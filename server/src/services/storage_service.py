@@ -16,7 +16,18 @@ ORIGINAL_DIR_NAME = "original"
 PROCESSED_DIR_NAME = "processed"
 AUDIO_FILE_STEM = "audio"
 METADATA_FILE_NAME = "meta.json"
+
+# Uma waveform por arquivo: a do original e a do processado.
+WAVEFORM_ORIGINAL_FILE_NAME = "waveform-original.png"
+WAVEFORM_PROCESSED_FILE_NAME = "waveform-processed.png"
+# Nome usado antes de existirem as duas waveforms (era sempre a do processado).
 WAVEFORM_FILE_NAME = "waveform.png"
+
+# Nomes aceitos por tipo, na ordem de preferência (o segundo é o arquivo legado).
+WAVEFORM_FILE_NAMES: dict[str, tuple[str, ...]] = {
+    "original": (WAVEFORM_ORIGINAL_FILE_NAME,),
+    "processed": (WAVEFORM_PROCESSED_FILE_NAME, WAVEFORM_FILE_NAME),
+}
 
 HASH_CHUNK_SIZE = 1024 * 1024
 
@@ -75,6 +86,20 @@ def audio_file_path(directory: Path, folder: str, extension: str) -> Path:
     extension = extension.lower().lstrip(".")
 
     return directory / folder / f"{AUDIO_FILE_STEM}.{extension}"
+
+
+def waveform_file_path(directory: Path, kind: str) -> Path:
+    return Path(directory) / WAVEFORM_FILE_NAMES[kind][0]
+
+
+def resolve_waveform_path(directory: Path, kind: str) -> Path | None:
+    for file_name in WAVEFORM_FILE_NAMES.get(kind, ()):
+        candidate = Path(directory) / file_name
+
+        if candidate.is_file():
+            return candidate
+
+    return None
 
 
 def reference_date_from_path(path_original: str | Path) -> date:

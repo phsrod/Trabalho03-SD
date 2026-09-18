@@ -82,7 +82,7 @@ Arquitetura **cliente-servidor em camadas**, com comunicação **HTTP/REST (sín
 │  ┌───────────────┐   ┌──────────────────┐   ┌─────────────────────────┐   │
 │  │ FileSelector  │   │ ProcessingSection│   │ PlaybackSection         │   │
 │  │ (QFileDialog) │   │ (combo + params) │   │ (2x QMediaPlayer +      │   │
-│  └───────┬───────┘   └────────┬─────────┘   │  waveform + tempo)      │   │
+│  └───────┬───────┘   └────────┬─────────┘   │  2 waveforms + tempo)   │   │
 │          │                    │             └────────────┬────────────┘   │
 │          │                    │                          │                │
 │          ▼                    ▼                          ▼                │
@@ -91,7 +91,7 @@ Arquitetura **cliente-servidor em camadas**, com comunicação **HTTP/REST (sín
 │  │ (orquestração) │   │ QNetworkAccessMgr│   │ (QTableWidget)          │  │
 │  └────────────────┘   └────────┬─────────┘   └────────────┬────────────┘  │
 └────────────────────────────────┼──────────────────────────┼───────────────┘
-                                 │  multipart + JSON        │  JSON
+                                 │  multipart + JSON        │  JSON / PNG
                                  ▼                          ▼
                         Rede local (Wi-Fi / Ethernet) — HTTP na porta 8000
                                  │                          │
@@ -130,14 +130,18 @@ Cliente (PySide6)                          Servidor (FastAPI)              Postg
    │                                             │          taxa, bitrate)        │
    │                                             │ FFmpeg (processamento)         │
    │                                             │───────────────────────────────▶│ .../processed/audio.<ext>
-   │                                             │ waveform.png + meta.json       │
+   │                                             │ waveform-original.png          │
+   │                                             │ waveform-processed.png         │
+   │                                             │ meta.json                      │
    │                                             │ checksum SHA-256               │
    │                                             │───────────────────────────────▶│ INSERT INTO audios
    │ 201 Created { id, urls, metadados }         │                                │
    │◀─────────────────────────────────────────────│                                │
-   │ atualiza histórico e players                 │                                │
+   │ atualiza histórico, players e waveforms      │                                │
    │ GET /audios/{id}/processed (player 2)        │                                │
    │─────────────────────────────────────────────▶│ responde o arquivo (Range/206)  │
+   │ GET /audios/{id}/waveform/{tipo}             │                                │
+   │─────────────────────────────────────────────▶│ responde o PNG da onda          │
 ```
 
 > Se qualquer etapa falhar, o servidor **desfaz tudo**: apaga a pasta do UUID e descarta a transação, para não deixar lixo no storage nem registro órfão no banco.
@@ -180,7 +184,9 @@ Documentação interativa (Swagger) em **`http://localhost:8000/docs`**.
 | `GET` | `/audios/{id}/meta` | Conteúdo do `meta.json` |
 | `GET` | `/audios/{id}/original` | Reproduz o original (suporta `Range`) |
 | `GET` | `/audios/{id}/processed` | Reproduz o processado (suporta `Range`) |
-| `GET` | `/audios/{id}/waveform` | Imagem `waveform.png` |
+| `GET` | `/audios/{id}/waveform` | Forma de onda do processado (mesma imagem de `/waveform/processed`) |
+| `GET` | `/audios/{id}/waveform/original` | Forma de onda do arquivo enviado |
+| `GET` | `/audios/{id}/waveform/processed` | Forma de onda do arquivo processado |
 | `GET` | `/audios/{id}/download/original` | Download do original |
 | `GET` | `/audios/{id}/download/processed` | Download do processado |
 | `DELETE` | `/audios/{id}` | Move o áudio para a lixeira |
@@ -272,8 +278,7 @@ Procure o IPv4 da interface Wi-Fi/Ethernet (algo como `192.168.0.10`).
 
 > **Importante:** se o cliente estiver em outra máquina, use o **IP da rede local** do servidor — `localhost`/`127.0.0.1` só funciona quando o cliente roda na mesma máquina.
 
-
-Variáveis de ambiente aceitas pelo servidor:
+### Variáveis de ambiente
 
 | Variável | Padrão | Descrição |
 |---|---|---|
@@ -322,7 +327,7 @@ A verificação tem um tempo limite de 5 segundos e roda no mecanismo de rede do
 
 1. **Arquivo** — *Selecionar áudio* abre o `QFileDialog`; formato, tamanho e duração aparecem na seção.
 2. **Processamento** — escolha o tipo; a velocidade (0,5x–2,0x) ou o formato de saída aparecem apenas quando fazem sentido. Clique em *Processar áudio*.
-3. **Reprodução** — dois players independentes (*Reproduzir* / *Pausar*): o **original** toca o arquivo local e o **processado** toca direto da URL do servidor, com tempo decorrido e um indicador de posição.
+3. **Reprodução** — dois players independentes (*Reproduzir* / *Pausar*): o **original** toca o arquivo local e o **processado** toca direto da URL do servidor. Cada player mostra a **forma de onda real** do seu áudio (imagem gerada pelo servidor) com o tempo decorrido e o indicador de posição.
 4. **Histórico** — lista os áudios do servidor (data, arquivo, processamento, duração e status); *Atualizar histórico* recarrega a lista.
 
 > O cliente não expõe todos os parâmetros da API: a normalização de volume usa o padrão do servidor (**-16 LUFS**) e a lixeira é acessada apenas pelas rotas `/trash/` ou pelo Swagger.
@@ -464,7 +469,7 @@ Seções de **Arquivo**, **Processamento**, **Reprodução** e **Histórico** em
 
 ### Histórico e reprodução
 
-Áudio processado selecionado, com os dois players, o indicador de posição e a tabela do histórico preenchida.
+As duas formas de onda reais, o indicador de posição e a tabela do histórico preenchida.
 
 ![Histórico e reprodução no cliente](.github/media/historico-e-reproducao.png)
 
@@ -489,13 +494,13 @@ Trabalho03-SD/
 │   └── app/
 │       ├── main.py                  # endereço do servidor + /health + MainWindow
 │       ├── services/
-│       │   └── audio_api.py         # HTTP: upload (multipart) e histórico
+│       │   └── audio_api.py         # HTTP: upload (multipart), histórico e imagens
 │       └── views/
 │           ├── main_window.py       # janela principal e orquestração
 │           ├── file_selector.py     # seleção do arquivo (formato/tamanho/duração)
 │           ├── processing_selector.py  # tipo de processamento e parâmetros
 │           ├── playback_selector.py # players do original e do processado
-│           ├── waveform.py          # widget da forma de onda
+│           ├── waveform.py          # forma de onda + indicador de posição
 │           └── history_selector.py  # tabela do histórico
 │
 └── server/                          # ── Servidor (FastAPI) ────────────────
@@ -527,17 +532,20 @@ server/storage/
 └── 2026-09-17/
     └── 161660b6-b1a3-4d38-8883-6fa57a09e47f/
         ├── original/
-        │   └── audio.mp3        # arquivo enviado, sem alteração
+        │   └── audio.mp3           # arquivo enviado, sem alteração
         ├── processed/
-        │   └── audio.mp3        # resultado do processamento
-        ├── waveform.png         # forma de onda gerada pelo FFmpeg
-        └── meta.json            # checksum, parâmetros aplicados e metadados
+        │   └── audio.mp3           # resultado do processamento
+        ├── waveform-original.png   # forma de onda do arquivo enviado
+        ├── waveform-processed.png  # forma de onda do resultado
+        └── meta.json               # checksum, parâmetros aplicados e metadados
 
 server/trash/
-└── <uuid>/                      # mesmo conteúdo, quando o áudio é excluído
+└── <uuid>/                         # mesmo conteúdo, quando o áudio é excluído
 ```
 
-Os caminhos são gravados no banco **relativos** à raiz do storage, então mover a pasta de armazenamento não invalida os registros. Para ver o que está no disco pelo container:
+Os caminhos são gravados no banco **relativos** à raiz do storage, então mover a pasta de armazenamento não invalida os registros.
+
+Para ver o que está no disco pelo container:
 
 ```bash
 docker compose exec server find /app/storage -type f | sort
@@ -547,7 +555,7 @@ docker compose exec server find /app/storage -type f | sort
 
 ---
 
-## Vídeo demonstrativo
+## Vídeo demonstrativo (opcional)
 
 Demonstração em vídeo do fluxo completo: conexão com o servidor, envio de um áudio, processamento, comparação entre original e processado e leitura do histórico.
 
